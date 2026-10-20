@@ -1,11 +1,11 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { getSession } from "../../services/authService";
+import { useAuth } from "../../context/useAuth";
 
 export default function RequireAuth() {
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
-  const token = getSession()?.token;
 
-  if (!token) {
+  if (!isAuthenticated) {
     return (
       <Navigate
         to="/login"

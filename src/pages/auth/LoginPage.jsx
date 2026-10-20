@@ -11,9 +11,9 @@ import {
 import {
   forgetRememberedEmail,
   getRememberedEmail,
-  login,
   rememberEmail,
 } from "../../services/authService";
+import { useAuth } from "../../context/useAuth";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,6 +40,7 @@ function inputClassName(hasError, paddingClass) {
 }
 
 export default function LoginPage({ onSuccess }) {
+  const { login } = useAuth();
   const rememberedEmail = getRememberedEmail();
   const [values, setValues] = useState({
     email: rememberedEmail,

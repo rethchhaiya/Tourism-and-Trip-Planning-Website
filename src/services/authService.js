@@ -32,7 +32,7 @@ async function mockLogin({ email, password }) {
   }
 }
 
-function persistSession(session) {
+export function persistSession(session) {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
 }
 

@@ -3,6 +3,8 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./components/layout/sidebar";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import RequireAuth from "./components/layout/RequireAuth";
+import RequireRole from "./components/layout/RequireRole";
+import { ROLES } from "./services/roleAdapter";
 import RevenueOverview from "./components/tour/RevenueOverview";
 import Destination from "./pages/admin/destinations/Destination";
 import Destinations from "./pages/admin/destinations/destinations";
@@ -68,6 +70,10 @@ function App() {
           <Route path='/home' element={<HomePage />} />
           <Route path="/detail-content" element={<Tours_detailContent />} />
           <Route element={<RequireAuth />}>
+          {/* Admin shell: customers are blocked with a 403 page.
+              TODO(role-matrix): revisit allowed roles once the backend role
+              contract is final; add finer-grained RequireRole guards per route. */}
+          <Route element={<RequireRole roles={[ROLES.ADMIN, ROLES.TOUR_MANAGER, ROLES.TOUR_GUIDE]}/>}>
           <Route element={<Sidebar />}>
           <Route path='/listbooking' element={<BookingList/>}/>
           <Route path='/customer' element={<Customers/>}/>
@@ -89,6 +95,7 @@ function App() {
              <Route path ="/tour-light" element={<TourLight/>}/>
              <Route path='/authentic-khmer' element={<AuthenticKhmer />} />
 
+          </Route>
           </Route>
           </Route>
           <Route path='/about' element={<AboutPage/>}/>

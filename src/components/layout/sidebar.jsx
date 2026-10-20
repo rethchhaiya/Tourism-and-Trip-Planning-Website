@@ -17,7 +17,7 @@ import {
   Bell,
   HelpCircle,
 } from "lucide-react";
-import { logout } from "../../services/authService";
+import { useAuth } from "../../context/useAuth";
 
 const menuPaths = {
   DashBoard: ["/dashboard", "/sidebar"],
@@ -65,6 +65,7 @@ const Sidebar = () => {
   const [activeItem, setActiveItem] = useState("DashBoard");
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { isAdmin, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-slate-100">
@@ -80,7 +81,11 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation — admin management menu.
+            Hiding is UX only; the backend must still enforce access.
+            TODO(role-matrix): show per-role menu items once the backend role
+            contract is final (currently only admins see the menu). */}
+        {isAdmin && (
         <nav className="flex-1 space-y-5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {sections.map((section) => (
             <div key={section.label}>
@@ -146,6 +151,7 @@ const Sidebar = () => {
             </div>
           ))}
         </nav>
+        )}
 
         {/* Logout */}
         <div className="mt-auto border-t border-white/10 pt-3">
