@@ -1,4 +1,4 @@
-const HighLighCompo = ({ icon, visit, txtPara }) => {
+const HighLightCompo = ({ icon, visit, txtPara }) => {
   return (
     <div className="group bg-white rounded-2xl p-6 shadow-md hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border border-slate-100">
       <div
@@ -32,5 +32,5 @@ const HighLighCompo = ({ icon, visit, txtPara }) => {
   );
 };
 
-export default HighLighCompo;
+export default HighLightCompo;
 

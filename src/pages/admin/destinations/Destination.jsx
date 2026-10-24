@@ -25,17 +25,6 @@ function Destination() {
                setValue(numericValue);
           }
      }
-     const [save, setHandleSave] = useState({
-          destinationName: '',
-          selectCountry: '',
-          city: '',
-          destinationStatus: false,
-          sortSummery: '',
-          fullDescription: '',
-          numberOfTour: '',
-          bestSesionToVisite: '',
-          tagHighligh: ''
-     })
      const handleSave = () => {
 
      }

@@ -1,6 +1,6 @@
 import React from "react";
-import StatCard from "../../../components/admin/StateCard";
-import RevenueOverview from "../../../components/tour/RevenueOverview";
+import StatCard from "../../../components/admin/dashboard/StatCard";
+import RevenueOverview from "../../../components/admin/dashboard/RevenueOverview";
 import BookingStatistics from "../../../components/booking/BookingStatistics";
 import RecentBookings from "../../../components/booking/RecentBookings";
 

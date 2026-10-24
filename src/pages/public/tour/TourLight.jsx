@@ -1,4 +1,4 @@
-import HighLighCompo from "../../../components/tour/HighLighCompo";
+import HighLightCompo from "../../../components/tour/HighLightCompo";
 import { Landmark, Star, Building, Car, Utensils, Calendar } from "lucide-react";
 
 const TourLight = () => {
@@ -49,7 +49,7 @@ const TourLight = () => {
       <h1 className="text-xl md:text-4xl text-gray-800 p-4 font-bold text-center md:text-left">Tour Highlights</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
         {cards.map((card) => (
-          <HighLighCompo
+          <HighLightCompo
             key={card.id}
             icon={card.icon}
             visit={card.visit}

@@ -40,7 +40,7 @@ const destinations = [
   },
 ];
 
-const Popular_Destinations = () => {
+const PopularDestinations = () => {
   return (
     <section
       className="bg-white px-6 py-19"
@@ -95,4 +95,4 @@ const Popular_Destinations = () => {
   );
 };
 
-export default Popular_Destinations;
+export default PopularDestinations;

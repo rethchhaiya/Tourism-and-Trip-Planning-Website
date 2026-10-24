@@ -1,19 +1,33 @@
+import { Link } from "react-router-dom";
 import { Heart, Share2, Images } from "lucide-react";
 
-const photos = {
-  main: "/images/angkor-wat-1.jpg",
-  topRight: "/images/angkor-wat-2.png",
-  middleRight: "/images/tonle-sap.png",
-  bottomRight: "/images/ta-prohm.png",
-  last: "/images/angkor-wat-sunset.png",
-};
+const FALLBACK_SLOTS = [
+  { src: "/images/angkor-wat-1.jpg", alt: "Angkor Wat" },
+  { src: "/images/angkor-wat-2.png", alt: "Bayon Temple" },
+  { src: "/images/tonle-sap.png", alt: "Tonle Sap" },
+  { src: "/images/ta-prohm.png", alt: "Ta Prohm" },
+  { src: "/images/angkor-wat-sunset.png", alt: "Angkor Wat sunset" },
+];
 
-function TourGallery() {
+function TourGallery({ images = [], title }) {
+  const heading = title ?? "Angkor Wat Discovery";
+  const slots = FALLBACK_SLOTS.map((slot, index) =>
+    images[index]
+      ? { src: images[index], alt: `${heading} photo ${index + 1}` }
+      : slot,
+  );
+  const [main, topRight, middleRight, bottomRight, last] = slots;
+
   return (
     <section className="mx-auto max-w-[1200px] mb-8">
       {/* Breadcrumb */}
       <div className="m-8 flex items-center gap-3 text-[16px]">
-        <span className="text-slate-600">Home</span>
+        <Link
+          to="/"
+          className="text-slate-600 transition-colors hover:text-slate-800"
+        >
+          Home
+        </Link>
         <span className="text-slate-300">&gt;</span>
 
         <span className="text-slate-600">Tours</span>
@@ -22,9 +36,7 @@ function TourGallery() {
         <span className="text-slate-600">Siem Reap</span>
         <span className="text-slate-300">&gt;</span>
 
-        <span className="font-semibold text-slate-800">
-          Angkor Wat Discovery
-        </span>
+        <span className="font-semibold text-slate-800">{heading}</span>
       </div>
 
       {/* Gallery */}
@@ -33,8 +45,8 @@ function TourGallery() {
           {/* Main Image */}
           <div className="relative max-h-[440px] overflow-hidden rounded-[28px]">
             <img
-              src={photos.main}
-              alt="Angkor Wat"
+              src={main.src}
+              alt={main.alt}
               className="h-full w-full object-cover"
             />
 
@@ -67,8 +79,8 @@ function TourGallery() {
             {/* Top left */}
             <div className="h-[208px] overflow-hidden rounded-[28px]">
               <img
-                src={photos.topRight}
-                alt="Bayon Temple"
+                src={topRight.src}
+                alt={topRight.alt}
                 className="h-full w-full object-cover transition duration-300 hover:scale-105"
               />
             </div>
@@ -76,8 +88,8 @@ function TourGallery() {
             {/* Top right */}
             <div className="h-[208px] overflow-hidden rounded-[28px]">
               <img
-                src={photos.middleRight}
-                alt="Tonle Sap"
+                src={middleRight.src}
+                alt={middleRight.alt}
                 className="h-full w-full object-cover transition duration-300 hover:scale-105"
               />
             </div>
@@ -85,8 +97,8 @@ function TourGallery() {
             {/* Bottom left */}
             <div className="h-[208px] overflow-hidden rounded-[28px]">
               <img
-                src={photos.bottomRight}
-                alt="Ta Prohm"
+                src={bottomRight.src}
+                alt={bottomRight.alt}
                 className="h-full w-full object-cover transition duration-300 hover:scale-105"
               />
             </div>
@@ -94,8 +106,8 @@ function TourGallery() {
             {/* Bottom right */}
             <div className="relative h-[208px] overflow-hidden rounded-[28px]">
               <img
-                src={photos.last}
-                alt="Angkor Wat sunset"
+                src={last.src}
+                alt={last.alt}
                 className="h-full w-full object-cover"
               />
 

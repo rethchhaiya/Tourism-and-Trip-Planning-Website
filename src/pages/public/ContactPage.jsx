@@ -1,7 +1,7 @@
 import React from 'react'
-import Header from '../../components/header'
-import ExperienceDetail from './experience_detail'
-import Footer from '../../components/footer'
+import Header from '../../components/Header'
+import ExperienceDetail from './ExperienceDetail'
+import Footer from '../../components/Footer'
 import ExperienceDetails from '../../components/tour/hero_section/AuthenticKhmer'
 
 const ContactPage = () => {

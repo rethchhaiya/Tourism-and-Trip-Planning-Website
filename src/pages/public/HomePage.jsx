@@ -1,13 +1,12 @@
 import React from 'react'
 import PromoBanner from '../../components/tour/PromoBanner'
 import ExperienceSection from '../../components/tour/ExperienceSection'
-import Popular_Destinations from '../../components/tour/Popular_Destinations'
+import PopularDestinations from '../../components/tour/PopularDestinations'
 import WhyChooseUs from '../../components/tour/WhyChooseUs'
-import Herosection from './Herosection'
-import FeaturedTourPackages from './Tour_packages'
-import TravelSection from './Practical_section'
-import Header from '../../components/header'
-import Footer from '../../components/footer'
+import HeroSection from './HeroSection'
+import FeaturedTourPackages from './TourPackages'
+import Header from '../../components/Header'
+import Footer from '../../components/Footer'
 
 const HERO_IMAGES = [
   'https://i.pinimg.com/1200x/ed/bf/73/edbf7353393cc3d039792dc89a0dd4b6.jpg',
@@ -21,8 +20,8 @@ const HomePage = () => {
     <>
       <Header/>
       <main>
-        <Herosection images={HERO_IMAGES} />
-        <Popular_Destinations/>
+        <HeroSection images={HERO_IMAGES} />
+        <PopularDestinations/>
         <FeaturedTourPackages/>
         <PromoBanner/>
         <ExperienceSection/>

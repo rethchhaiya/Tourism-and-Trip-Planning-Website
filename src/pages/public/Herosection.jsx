@@ -31,7 +31,7 @@ function SearchField({ icon: Icon, label, placeholder, name, type = "text" }) {
   );
 }
 
-export default function Herosection({ images = [], autoPlay = true }) {
+export default function HeroSection({ images = [], autoPlay = true }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const timerRef = useRef(null);

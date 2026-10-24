@@ -4,6 +4,11 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
+import { setToken } from './utils/devAuth'
+
+if (import.meta.env.DEV) {
+  window.setToken = setToken
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

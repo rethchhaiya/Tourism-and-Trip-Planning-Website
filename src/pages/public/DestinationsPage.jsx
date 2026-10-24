@@ -1,11 +1,10 @@
 import React from 'react'
-import Header from '../../components/header'
-import Footer from '../../components/footer'
-import Popular_Destinations from '../../components/tour/Popular_Destinations'
-import Top_attractions from './Top_attractions'
-import TravelSection from './Practical_section'
+import Header from '../../components/Header'
+import Footer from '../../components/Footer'
+import TopAttractions from './TopAttractions'
+import TravelSection from './PracticalSection'
 import DestinationDetail from './DestinationDetailPage'
-import { Available_tours } from './Available_tours'
+import { AvailableTours } from './AvailableTours'
 import DestinationCTA from '../../components/DestinationCTA'
 
 const DestinationsPage = () => {
@@ -15,8 +14,8 @@ const DestinationsPage = () => {
       <main>
         {/*  */}
         <DestinationDetail/>
-        <Top_attractions/>
-        <Available_tours/>
+        <TopAttractions/>
+        <AvailableTours/>
         <TravelSection/>
         <DestinationCTA/>
       </main>

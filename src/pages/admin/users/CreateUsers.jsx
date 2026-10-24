@@ -16,8 +16,8 @@ const CreateUsers = () => {
     });
   };
 
-  const handleSubmit = () =>{
-    <Testing/>
+  const handleSubmit = (e) => {
+    e?.preventDefault();
   }
   return (
     <div className="w-full">

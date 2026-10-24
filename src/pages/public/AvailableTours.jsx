@@ -47,7 +47,7 @@ const tours = [
       "https://www.siemreap.net/wp-content/uploads/2017/12/siem-reap-pub-street-sunset.jpg",
   },
 ];
-export const Available_tours = () => {
+export const AvailableTours = () => {
   return (
     <section id="available-tours" className=" px-5 py-16 md:px-10 md:py-24">
       <div className=" mx-auto max-w-[1200px]">

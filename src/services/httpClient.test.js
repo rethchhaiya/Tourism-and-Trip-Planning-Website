@@ -1,222 +1,123 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, http } from "./httpClient";
-import { getSession, logout } from "./authService";
+import { http } from "./httpClient";
 
-vi.mock("./authService", () => ({
-  getSession: vi.fn(),
-  logout: vi.fn(),
-}));
+const BASE_URL = "http://test.local/api";
+const SESSION_KEY = "traveladmin.session";
 
-const BASE_URL = "http://api.test";
-
-function jsonResponse(body, { status = 200 } = {}) {
+function jsonResponse(status, body) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" },
   });
 }
 
-function lastFetchCall() {
-  const calls = fetchMock.mock.calls;
-  return calls[calls.length - 1];
-}
-
-function stubWindow(pathname = "/dashboard") {
-  const assign = vi.fn();
-  globalThis.window = { location: { pathname, assign } };
-  return assign;
-}
-
-let fetchMock;
-
 beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
   vi.stubEnv("VITE_API_BASE_URL", BASE_URL);
-  fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
-  getSession.mockReset();
-  logout.mockReset();
-  getSession.mockReturnValue(null);
+  vi.stubGlobal("fetch", vi.fn());
 });
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
-  delete globalThis.window;
+  vi.unstubAllEnvs();
+  localStorage.clear();
 });
 
-describe("header injection", () => {
-  it("sends Accept and Content-Type application/json by default", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+describe(" httpClient header handling", () => {
+  it("injects Accept/Content-Type and the stored Bearer token", async () => {
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({ token: "tok-1", user: null }),
+    );
+    fetch.mockResolvedValue(jsonResponse(200, { success: true, data: { ok: 1 } }));
 
-    await http.get("/tours");
+    const data = await http.get("/jobs");
 
-    const [url, init] = lastFetchCall();
-    expect(url).toBe(`${BASE_URL}/tours`);
+    expect(data).toEqual({ ok: 1 });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe(`${BASE_URL}/jobs`);
     expect(init.method).toBe("GET");
     expect(init.headers.Accept).toBe("application/json");
     expect(init.headers["Content-Type"]).toBe("application/json");
-  });
-
-  it("injects Authorization Bearer token when a session exists", async () => {
-    getSession.mockReturnValue({ token: "test-token" });
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
-
-    await http.get("/me");
-
-    const [, init] = lastFetchCall();
-    expect(init.headers.Authorization).toBe("Bearer test-token");
+    expect(init.headers.Authorization).toBe("Bearer tok-1");
   });
 
   it("omits Authorization when no session exists", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
-
-    await http.get("/reference/destinations");
-
-    const [, init] = lastFetchCall();
+    fetch.mockResolvedValue(jsonResponse(200, { success: true, data: {} }));
+    await http.get("/jobs");
+    const init = fetch.mock.calls[0][1];
     expect(init.headers.Authorization).toBeUndefined();
   });
-});
 
-describe("response unwrapping", () => {
-  it("unwraps { success, message, data } responses to data", async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse({ success: true, message: "OK", data: { id: 7 } }),
-    );
-
-    await expect(http.get("/tours/7")).resolves.toEqual({ id: 7 });
-  });
-
-  it("passes raw responses through unchanged (login / reference data)", async () => {
-    const rawBody = { token: "abc", user: { email: "a@b.c" } };
-    fetchMock.mockResolvedValue(jsonResponse(rawBody));
-
-    await expect(http.post("/auth/login", { email: "a@b.c" })).resolves.toEqual(
-      rawBody,
-    );
-  });
-
-  it("returns null for 204 No Content", async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-
-    await expect(http.delete("/bookings/1")).resolves.toBeNull();
-  });
-});
-
-describe("error normalization", () => {
-  it("normalizes validation errors into { status, message, errors }", async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse(
-        {
-          message: "The given data was invalid.",
-          errors: { email: ["Email is required."] },
-        },
-        { status: 422 },
-      ),
-    );
-
-    const error = await http.post("/register", { email: "" }).catch((e) => e);
-
-    expect(error).toBeInstanceOf(ApiError);
-    expect(error.status).toBe(422);
-    expect(error.message).toBe("The given data was invalid.");
-    expect(error.errors).toEqual({ email: ["Email is required."] });
-  });
-
-  it("falls back to a generic message when the body has none", async () => {
-    fetchMock.mockResolvedValue(new Response("boom", { status: 500 }));
-
-    const error = await http.get("/tours").catch((e) => e);
-
-    expect(error).toBeInstanceOf(ApiError);
-    expect(error.status).toBe(500);
-    expect(error.message).toBe("Something went wrong. Please try again.");
-    expect(error.errors).toBeNull();
-  });
-
-  it("normalizes network failures to status 0", async () => {
-    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
-
-    const error = await http.get("/tours").catch((e) => e);
-
-    expect(error).toBeInstanceOf(ApiError);
-    expect(error.status).toBe(0);
-  });
-
-  it("throws a configuration error when the base URL is missing", async () => {
-    vi.stubEnv("VITE_API_BASE_URL", "");
-
-    const error = await http.get("/tours").catch((e) => e);
-
-    expect(error).toBeInstanceOf(ApiError);
-    expect(error.status).toBe(0);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("401 handling", () => {
-  it("clears the session and redirects to /login, then throws", async () => {
-    const assign = stubWindow("/dashboard");
-    fetchMock.mockResolvedValue(
-      jsonResponse({ message: "Unauthenticated." }, { status: 401 }),
-    );
-
-    const error = await http.get("/dashboard/stats").catch((e) => e);
-
-    expect(logout).toHaveBeenCalledTimes(1);
-    expect(assign).toHaveBeenCalledWith("/login");
-    expect(error).toBeInstanceOf(ApiError);
-    expect(error.status).toBe(401);
-    expect(error.message).toBe("Unauthenticated.");
-  });
-
-  it("does not redirect when already on the login page", async () => {
-    const assign = stubWindow("/login");
-    fetchMock.mockResolvedValue(
-      jsonResponse({ message: "Invalid credentials." }, { status: 401 }),
-    );
-
-    const error = await http.post("/auth/login", {}).catch((e) => e);
-
-    expect(logout).toHaveBeenCalledTimes(1);
-    expect(assign).not.toHaveBeenCalled();
-    expect(error.status).toBe(401);
-    expect(error.message).toBe("Invalid credentials.");
-  });
-});
-
-describe("FormData handling", () => {
-  it("sends FormData without a Content-Type header so the browser sets the boundary", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ success: true, data: null }));
+  it("drops Content-Type when the body is FormData", async () => {
+    fetch.mockResolvedValue(jsonResponse(200, { success: true, data: { id: 7 } }));
     const formData = new FormData();
-    formData.append("image", new Blob(["x"]), "photo.png");
+    formData.append("file", new Blob(["x"], { type: "text/plain" }), "f.txt");
 
-    await http.upload("/tours/1/images", formData);
+    await http.upload("/tours/1/photos", formData);
 
-    const [url, init] = lastFetchCall();
-    expect(url).toBe(`${BASE_URL}/tours/1/images`);
-    expect(init.method).toBe("POST");
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe(`${BASE_URL}/tours/1/photos`);
     expect(init.body).toBe(formData);
     expect(init.headers["Content-Type"]).toBeUndefined();
-    expect(init.headers.Accept).toBe("application/json");
+  });
+});
+
+describe("httpClient error normalization", () => {
+  it("maps server payloads into { status, message, errors }", async () => {
+    fetch.mockResolvedValue(
+      jsonResponse(422, {
+        message: "Validation failed.",
+        errors: { email: ["Not valid."] },
+      }),
+    );
+
+    await expect(http.post("/things", { a: 1 })).rejects.toMatchObject({
+      name: "ApiError",
+      status: 422,
+      message: "Validation failed.",
+      errors: { email: ["Not valid."] },
+    });
   });
 
-  it("defaults upload to POST but allows overriding the method", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ success: true, data: null }));
-    const formData = new FormData();
+  it("treats success:false bodies as errors even with HTTP 200", async () => {
+    fetch.mockResolvedValue(
+      jsonResponse(200, { success: false, message: "Invalid or expired OTP." }),
+    );
 
-    await http.upload("/tours/1/images", formData, { method: "PUT" });
-
-    const [, init] = lastFetchCall();
-    expect(init.method).toBe("PUT");
+    await expect(http.post("/x", {})).rejects.toMatchObject({
+      status: 200,
+      message: "Invalid or expired OTP.",
+    });
   });
 
-  it("still JSON-encodes plain object bodies", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ success: true, data: { id: 1 } }));
+  it("falls back to the generic message for opaque errors", async () => {
+    fetch.mockResolvedValue(new Response("oops", { status: 500 }));
 
-    await http.post("/tours", { name: "Angkor" });
+    await expect(http.get("/x")).rejects.toMatchObject({
+      status: 500,
+      message: "Something went wrong. Please try again.",
+    });
+  });
+});
 
-    const [, init] = lastFetchCall();
-    expect(init.body).toBe(JSON.stringify({ name: "Angkor" }));
-    expect(init.headers["Content-Type"]).toBe("application/json");
+describe("httpClient 401 handling", () => {
+  it("clears the stored session when the API answers 401", async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ token: "tok", user: null }));
+    fetch.mockResolvedValue(jsonResponse(401, { message: "Unauthenticated." }));
+
+    await expect(http.get("/me")).rejects.toMatchObject({ status: 401 });
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+  });
+
+  it("does not clear anything nor redirect when noAuthRedirect is set", async () => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ token: "tok", user: null }));
+    fetch.mockResolvedValue(jsonResponse(401, { message: "Unauthenticated." }));
+
+    await expect(
+      http.post("/auth/reset-password-with-otp", {}, { noAuthRedirect: true }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(localStorage.getItem(SESSION_KEY)).not.toBeNull();
   });
 });

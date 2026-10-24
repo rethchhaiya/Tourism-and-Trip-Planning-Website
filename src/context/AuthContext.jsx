@@ -23,6 +23,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Google OAuth returns to the homepage with the token in the query
+    // string; absorb it into the storage-backed session before hydrating.
+    authService.absorbGoogleTokenFromUrl();
     const stored = authService.getSession();
     if (!stored?.token) {
       return undefined;
@@ -65,9 +68,9 @@ export function AuthProvider({ children }) {
     return fullSession;
   }, []);
 
-  const logout = useCallback(() => {
-    authService.logout();
+  const logout = useCallback(async () => {
     setSession(null);
+    await authService.logout();
   }, []);
 
   const value = useMemo(() => {

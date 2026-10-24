@@ -232,17 +232,3 @@ function FilterButton({ text }) {
     </button>
   );
 }
-
-function StatusBadge({ status }) {
-  const active = status === "ACTIVE";
-
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${
-        active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"
-      }`}
-    >
-      {status}
-    </span>
-  );
-}

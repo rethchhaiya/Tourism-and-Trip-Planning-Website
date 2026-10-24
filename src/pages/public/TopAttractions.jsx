@@ -21,7 +21,7 @@ const attraction = [
     image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLyERTfEKfr0aocv4YL8k8kpGswtObxe1AzMqt2D6K8g85AA8k33DCVcM&s=10"
   }
 ]
-const Top_attractions = () => {
+const TopAttractions = () => {
   return (
     <section className="bg-[#f5f6f8ed] px-5 py-16 md:px-10 md:py-24">
       <div className="mx-auto max-w-[1200px]">
@@ -53,4 +53,4 @@ const Top_attractions = () => {
   );
 };
 
-export default Top_attractions;
+export default TopAttractions;

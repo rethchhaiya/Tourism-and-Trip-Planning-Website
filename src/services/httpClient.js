@@ -59,7 +59,7 @@ function unwrap(body) {
 }
 
 function handleUnauthorized() {
-  logout();
+  logout({ callServer: false });
   if (
     typeof window !== "undefined" &&
     window.location &&
@@ -79,7 +79,7 @@ function buildHeaders(customHeaders, hasFormData) {
     delete headers["Content-Type"];
   }
   const token = getSession()?.token;
-  if (token) {
+  if (token && !headers.Authorization) {
     headers.Authorization = `Bearer ${token}`;
   }
   return headers;
@@ -87,7 +87,13 @@ function buildHeaders(customHeaders, hasFormData) {
 
 async function request(
   path,
-  { method = "GET", body, headers: customHeaders, ...fetchOptions } = {},
+  {
+    method = "GET",
+    body,
+    headers: customHeaders,
+    noAuthRedirect = false,
+    ...fetchOptions
+  } = {},
 ) {
   const baseUrl = getBaseUrl();
   if (!baseUrl) {
@@ -118,7 +124,7 @@ async function request(
     throw new ApiError(NETWORK_ERROR_MESSAGE, { status: 0 });
   }
 
-  if (response.status === 401) {
+  if (response.status === 401 && !noAuthRedirect) {
     handleUnauthorized();
   }
 
@@ -128,7 +134,7 @@ async function request(
 
   const data = await response.json().catch(() => null);
 
-  if (!response.ok) {
+  if (!response.ok || data?.success === false) {
     throw normalizeError(response.status, data);
   }
 
