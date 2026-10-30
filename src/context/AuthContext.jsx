@@ -7,12 +7,13 @@ import {
 import * as authService from "../services/authService";
 import { AuthContext } from "./useAuth";
 import {
-  extractRole,
   fetchCurrentUser,
+  getRoles,
   isAdmin,
   isCustomer,
   isTourGuide,
   isTourManager,
+  resolveRole,
 } from "../services/roleAdapter";
 
 export function AuthProvider({ children }) {
@@ -33,9 +34,6 @@ export function AuthProvider({ children }) {
 
     (async () => {
       try {
-        // TODO(role-source): placeholder adapter — loads the user (incl. role)
-        // from the stored session. Swap to GET /auth/me inside
-        // fetchCurrentUser once the backend decides option (b).
         const user = await fetchCurrentUser(stored);
         if (cancelled) {
           return;
@@ -59,9 +57,6 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const next = await authService.login(credentials);
-    // TODO(role-source): if the backend picks option (a), the role is already
-    // part of next.user; if option (b), call fetchCurrentUser(next) here to
-    // hydrate the full user before storing it in state.
     const user = await fetchCurrentUser(next);
     const fullSession = user ? { ...next, user } : next;
     setSession(fullSession);
@@ -80,7 +75,8 @@ export function AuthProvider({ children }) {
       token: session?.token ?? null,
       isAuthenticated: Boolean(session?.token),
       isLoading: isLoadingUser,
-      role: extractRole(user),
+      roles: getRoles(user),
+      role: resolveRole(user),
       isAdmin: isAdmin(user),
       isTourManager: isTourManager(user),
       isTourGuide: isTourGuide(user),

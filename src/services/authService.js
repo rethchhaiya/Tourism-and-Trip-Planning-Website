@@ -45,7 +45,7 @@ function getApiBaseUrl() {
 
 async function requestLogin(credentials) {
   const data = await http.post("/auth/login", credentials);
-  const token = data?.access_token ?? data?.token ?? data?.accessToken;
+  const token = data?.access_token;
   if (!token) {
     throw new Error("Login response did not include an access token.");
   }

@@ -1,12 +1,5 @@
-// -----------------------------------------------------------------------------
-// ROLE ADAPTER — PLACEHOLDER
-// -----------------------------------------------------------------------------
-// The backend has NOT yet agreed how the client obtains the user's role:
-//   (a) role/roles included in the POST /auth/login response, or
-//   (b) GET /auth/me (Bearer token) returning the current user incl. role.
-// All places that must be revisited once the contract is fixed are marked with
-// TODO(role-source). Do not remove those markers until the backend ships.
-// -----------------------------------------------------------------------------
+// Roles come from user.roles in the login and register responses; user.role
+// remains a legacy fallback for the mock login and Google callback.
 
 export const ROLES = {
   ADMIN: "admin",
@@ -15,11 +8,12 @@ export const ROLES = {
   CUSTOMER: "customer",
 };
 
-// TODO(role-source): confirm the REAL field name with the backend team.
-// Once agreed, replace the expression below, e.g.:
-//   (a) option — user?.role / user?.roles?.[0] from the stored login session
-//   (b) option — data?.role / data?.roles?.[0] from GET /auth/me
-const ROLE_FIELD = (user) => user?.role ?? user?.roles?.[0] ?? null;
+const ROLE_ORDER = [
+  ROLES.ADMIN,
+  ROLES.TOUR_MANAGER,
+  ROLES.TOUR_GUIDE,
+  ROLES.CUSTOMER,
+];
 
 const ROLE_ALIASES = {
   admin: ROLES.ADMIN,
@@ -31,43 +25,105 @@ const ROLE_ALIASES = {
   customer: ROLES.CUSTOMER,
 };
 
-export function extractRole(user) {
-  const raw = ROLE_FIELD(user);
-  if (typeof raw !== "string") {
+function normalizeRoleName(value) {
+  if (typeof value !== "string") {
     return null;
   }
-  const normalized = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
   return ROLE_ALIASES[normalized] ?? null;
 }
 
-export function isAdmin(user) {
-  return extractRole(user) === ROLES.ADMIN;
+function collectRoleNames(user) {
+  const names = [];
+
+  if (Array.isArray(user.roles)) {
+    for (const entry of user.roles) {
+      if (typeof entry === "string") {
+        names.push(entry);
+      } else if (
+        entry &&
+        typeof entry === "object" &&
+        typeof entry.name === "string"
+      ) {
+        names.push(entry.name);
+      }
+    }
+  }
+
+  if (typeof user.role === "string") {
+    names.push(user.role);
+  }
+
+  return names;
 }
 
-export function isTourManager(user) {
-  return extractRole(user) === ROLES.TOUR_MANAGER;
+export function getRoles(user) {
+  if (user === null || user === undefined) {
+    return [];
+  }
+
+  const recognised = new Set();
+
+  for (const rawName of collectRoleNames(user)) {
+    const name = rawName.trim();
+    if (!name) {
+      continue;
+    }
+
+    const role = normalizeRoleName(name);
+    if (role) {
+      recognised.add(role);
+    } else if (import.meta.env.DEV) {
+      console.warn(`[roleAdapter] Unrecognised role name: ${name}`);
+    }
+  }
+
+  if (recognised.size === 0) {
+    return [ROLES.CUSTOMER];
+  }
+
+  return ROLE_ORDER.filter((role) => recognised.has(role));
 }
 
-export function isTourGuide(user) {
-  return extractRole(user) === ROLES.TOUR_GUIDE;
+export function resolveRole(user) {
+  if (user === null || user === undefined) {
+    return null;
+  }
+  return getRoles(user)[0] ?? null;
 }
 
-export function isCustomer(user) {
-  return extractRole(user) === ROLES.CUSTOMER;
+export function hasRole(user, role) {
+  const target = normalizeRoleName(role);
+  return target !== null && getRoles(user).includes(target);
 }
 
 export function hasAnyRole(user, roles) {
-  const role = extractRole(user);
-  return role !== null && roles.includes(role);
+  if (!Array.isArray(roles)) {
+    return false;
+  }
+  const userRoles = getRoles(user);
+  return roles.some((role) => {
+    const target = normalizeRoleName(role);
+    return target !== null && userRoles.includes(target);
+  });
 }
 
-// TODO(role-source): option (b) — replace the placeholder below with the real
-// endpoint call once the backend ships it, e.g.:
-//     import { http } from "./httpClient";
-//     const data = await http.get("/auth/me");
-//     return data;
-// Until then (option (a)-style placeholder) we reuse the user object stored in
-// the session at login time. No extra network request is made.
+export function isAdmin(user) {
+  return hasRole(user, ROLES.ADMIN);
+}
+
+export function isTourManager(user) {
+  return hasRole(user, ROLES.TOUR_MANAGER);
+}
+
+export function isTourGuide(user) {
+  return hasRole(user, ROLES.TOUR_GUIDE);
+}
+
+export function isCustomer(user) {
+  return hasRole(user, ROLES.CUSTOMER);
+}
+
 export async function fetchCurrentUser(session) {
   return session?.user ?? null;
 }
