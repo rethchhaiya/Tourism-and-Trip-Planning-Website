@@ -1,4 +1,4 @@
-import Header from '../../components/header'
+import Header from '../../components/Header'
 import Footer from '../../components/Footer'
 import TopAttractions from './TopAttractions'
 import TravelSection from './PracticalSection'

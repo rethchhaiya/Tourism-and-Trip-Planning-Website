@@ -15,6 +15,9 @@ import {
   X,
 } from "lucide-react";
 
+import { useAuth } from "../../../context/useAuth";
+import { PERMISSIONS } from "../../../constants/permissions";
+
 const bookings = [
   {
     id: "#BKG-8892",
@@ -83,6 +86,7 @@ const formatTwoLines = (date) => {
 };
 
 const BookingList = () => {
+  const { can } = useAuth();
   const [search, setSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("All Statuses");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
@@ -145,6 +149,22 @@ const BookingList = () => {
   if (statusFilter !== "All Statuses")
     activeChips.push({ key: "status", label: `Status: ${statusFilter}` });
 
+  const bookingActions = [
+    { label: "View Details" },
+    {
+      label: "Edit Booking",
+      permission: PERMISSIONS.UPDATE_BOOKINGS,
+    },
+    {
+      label: "Update Status",
+      permission: PERMISSIONS.UPDATE_BOOKINGS,
+    },
+    {
+      label: "Cancel Booking",
+      permission: PERMISSIONS.CANCEL_BOOKINGS,
+    },
+  ].filter(({ permission }) => !permission || can(permission));
+
   return (
     <main className="min-h-screen bg-slate-100 p-4 md:p-8">
       {/* Page header */}
@@ -163,14 +183,18 @@ const BookingList = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50">
-            <Download size={16} />
-            Export
-          </button>
-          <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-500">
-            <Plus size={16} />
-            New Booking
-          </button>
+          {can(PERMISSIONS.VIEW_BOOKINGS) && (
+            <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50">
+              <Download size={16} />
+              Export
+            </button>
+          )}
+          {can(PERMISSIONS.STORE_BOOKINGS) && (
+            <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-500">
+              <Plus size={16} />
+              New Booking
+            </button>
+          )}
         </div>
       </div>
 
@@ -250,10 +274,12 @@ const BookingList = () => {
               <SlidersHorizontal size={16} />
               More Filters
             </button>
-            <button className="flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-blue-600 transition hover:bg-blue-50">
-              <Download size={16} />
-              Export
-            </button>
+            {can(PERMISSIONS.VIEW_BOOKINGS) && (
+              <button className="flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-blue-600 transition hover:bg-blue-50">
+                <Download size={16} />
+                Export
+              </button>
+            )}
           </div>
         </div>
 
@@ -366,19 +392,14 @@ const BookingList = () => {
                     </button>
                     {openMenuId === idx && (
                       <div className="absolute right-4 top-12 z-20 w-40 rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg">
-                        {[
-                          "View Details",
-                          "Edit Booking",
-                          "Update Status",
-                          "Cancel Booking",
-                        ].map((action) => (
+                        {bookingActions.map((action) => (
                           <button
-                            key={action}
+                            key={action.label}
                             type="button"
                             onClick={() => setOpenMenuId(null)}
                             className="block w-full px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
                           >
-                            {action}
+                            {action.label}
                           </button>
                         ))}
                       </div>

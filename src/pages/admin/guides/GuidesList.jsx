@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useAuth } from "../../../context/useAuth";
 
 const guides = [
   {
@@ -30,6 +31,7 @@ const guides = [
 ];
 
 export default function GuildList() {
+  const { isAdmin } = useAuth();
   const [guideList, setGuideList] = useState(guides);
   const [search, setSearch] = useState("");
 
@@ -149,25 +151,27 @@ export default function GuildList() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <span>{guide.licenseNumber}</span>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={addGuide}
-                          className="flex items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
-                        >
-                          <Plus size={14} />
-                          Add
-                        </button>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={addGuide}
+                            className="flex items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
+                          >
+                            <Plus size={14} />
+                            Add
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => removeGuide(guide.id)}
-                          className="flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
-                        >
-                          <Trash2 size={14} />
-                          Remove
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => removeGuide(guide.id)}
+                            className="flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                          >
+                            <Trash2 size={14} />
+                            Remove
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -1,8 +1,10 @@
 import { Download, Plus, Users, UserCheck, Repeat, Wallet } from "lucide-react";
 import CustomerTable from "./CustomerTable";
 import { customers } from "./customersData";
+import { useAuth } from "../../../context/useAuth";
 
 export default function Customers() {
+  const { isAdmin } = useAuth();
   const total = customers.length;
   const activeCount = customers.filter((c) => c.status === "ACTIVE").length;
   const repeatCount = customers.filter((c) => c.bookings >= 2).length;
@@ -55,14 +57,18 @@ export default function Customers() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50">
-              <Download size={16} />
-              Export CSV
-            </button>
-            <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-500">
-              <Plus size={16} />
-              Add Customer
-            </button>
+            {isAdmin && (
+              <>
+                <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50">
+                  <Download size={16} />
+                  Export CSV
+                </button>
+                <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-500">
+                  <Plus size={16} />
+                  Add Customer
+                </button>
+              </>
+            )}
           </div>
         </div>
 

@@ -1,5 +1,7 @@
 import React from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
+import { useAuth } from "../../../context/useAuth";
+import { PERMISSIONS } from "../../../constants/permissions";
 
 const categoryStyles = {
   Beach: "bg-indigo-50 text-indigo-600",
@@ -15,6 +17,8 @@ const statusStyles = {
 };
 
 const TourRow = ({ tour, onView, onEdit, onDelete }) => {
+  const { can, isAdmin } = useAuth();
+
   return (
     <tr className="border-b border-slate-100 transition hover:bg-slate-50">
       {/* ID */}
@@ -80,21 +84,25 @@ const TourRow = ({ tour, onView, onEdit, onDelete }) => {
             <Eye size={17} />
           </button>
 
-          <button
-            onClick={() => onEdit(tour)}
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
-            title="Edit"
-          >
-            <Pencil size={17} />
-          </button>
+          {can(PERMISSIONS.UPDATE_TOURS) && (
+            <button
+              onClick={() => onEdit(tour)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
+              title="Edit"
+            >
+              <Pencil size={17} />
+            </button>
+          )}
 
-          <button
-            onClick={() => onDelete(tour)}
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-            title="Delete"
-          >
-            <Trash2 size={17} />
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => onDelete(tour)}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+              title="Delete"
+            >
+              <Trash2 size={17} />
+            </button>
+          )}
         </div>
       </td>
     </tr>

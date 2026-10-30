@@ -1,11 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ALL_PERMISSIONS,
+  PERMISSIONS,
+} from "../constants/permissions";
 import { getSession, persistSession } from "./authService";
 import {
+  can,
+  canAny,
+  getPermissions,
   getRoles,
   hasAnyRole,
   hasRole,
   isAdmin,
   isCustomer,
+  isStaff,
   isTourGuide,
   isTourManager,
   ROLES,
@@ -175,5 +183,79 @@ describe("stored session", () => {
     expect(getRoles(loaded.user)).toEqual(getRoles(ADMIN_USER));
     expect(hasAnyRole(loaded.user, [ROLES.ADMIN])).toBe(true);
     expect(hasAnyRole(loaded.user, [ROLES.CUSTOMER])).toBe(true);
+  });
+});
+
+describe("permissions", () => {
+  const TOUR_MANAGER_USER = {
+    roles: [{ id: 3, name: "tour_manager", type: "admin" }],
+  };
+  const TOUR_GUIDE_USER = {
+    roles: [{ id: 4, name: "tour_guide", type: "admin" }],
+  };
+
+  it("unions the permissions of every role", () => {
+    expect(getPermissions(ADMIN_USER)).toEqual(ALL_PERMISSIONS);
+    expect(getPermissions(CUSTOMER_USER)).toEqual([
+      PERMISSIONS.CANCEL_BOOKINGS,
+      PERMISSIONS.STORE_BOOKINGS,
+      PERMISSIONS.VIEW_BOOKINGS,
+      PERMISSIONS.VIEW_CATEGORIES,
+      PERMISSIONS.VIEW_GUIDES,
+      PERMISSIONS.VIEW_LOCATIONS,
+      PERMISSIONS.VIEW_TOURS,
+    ]);
+  });
+
+  it("allows and denies each role on a sample of permissions", () => {
+    expect(can(ADMIN_USER, PERMISSIONS.APPROVE_BOOKINGS)).toBe(true);
+    expect(can(ADMIN_USER, PERMISSIONS.STORE_BOOKINGS)).toBe(true);
+
+    expect(can(TOUR_MANAGER_USER, PERMISSIONS.APPROVE_BOOKINGS)).toBe(true);
+    expect(can(TOUR_MANAGER_USER, PERMISSIONS.UPDATE_TOURS)).toBe(true);
+    expect(can(TOUR_MANAGER_USER, PERMISSIONS.STORE_BOOKINGS)).toBe(false);
+    expect(can(TOUR_MANAGER_USER, PERMISSIONS.VIEW_GUIDES)).toBe(false);
+
+    expect(can(TOUR_GUIDE_USER, PERMISSIONS.VIEW_BOOKINGS)).toBe(true);
+    expect(can(TOUR_GUIDE_USER, PERMISSIONS.VIEW_CATEGORIES)).toBe(false);
+    expect(can(TOUR_GUIDE_USER, PERMISSIONS.CANCEL_BOOKINGS)).toBe(false);
+
+    expect(can(CUSTOMER_USER, PERMISSIONS.STORE_BOOKINGS)).toBe(true);
+    expect(can(CUSTOMER_USER, PERMISSIONS.APPROVE_BOOKINGS)).toBe(false);
+  });
+
+  it("gives an admin+customer user every permission", () => {
+    for (const permission of ALL_PERMISSIONS) {
+      expect(can(ADMIN_USER, permission)).toBe(true);
+    }
+  });
+
+  it("treats missing users as having no permissions", () => {
+    expect(getPermissions(null)).toEqual([]);
+    expect(can(null, PERMISSIONS.VIEW_BOOKINGS)).toBe(false);
+    expect(canAny(null, [PERMISSIONS.VIEW_BOOKINGS])).toBe(false);
+  });
+
+  it("canAny matches when at least one permission is granted", () => {
+    expect(
+      canAny(TOUR_GUIDE_USER, [
+        PERMISSIONS.VIEW_CATEGORIES,
+        PERMISSIONS.VIEW_BOOKINGS,
+      ]),
+    ).toBe(true);
+    expect(
+      canAny(TOUR_GUIDE_USER, [
+        PERMISSIONS.VIEW_CATEGORIES,
+        PERMISSIONS.CANCEL_BOOKINGS,
+      ]),
+    ).toBe(false);
+  });
+
+  it("identifies staff roles only", () => {
+    expect(isStaff(ADMIN_USER)).toBe(true);
+    expect(isStaff(TOUR_MANAGER_USER)).toBe(true);
+    expect(isStaff(TOUR_GUIDE_USER)).toBe(true);
+    expect(isStaff(CUSTOMER_USER)).toBe(false);
+    expect(isStaff(null)).toBe(false);
   });
 });

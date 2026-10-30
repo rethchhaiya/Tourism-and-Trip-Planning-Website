@@ -1,3 +1,5 @@
+import { ALL_PERMISSIONS, ROLE_PERMISSIONS } from "../constants/permissions";
+
 // Roles come from user.roles in the login and register responses; user.role
 // remains a legacy fallback for the mock login and Google callback.
 
@@ -122,6 +124,41 @@ export function isTourGuide(user) {
 
 export function isCustomer(user) {
   return hasRole(user, ROLES.CUSTOMER);
+}
+
+export function getPermissions(user) {
+  const granted = new Set();
+
+  for (const role of getRoles(user)) {
+    for (const permission of ROLE_PERMISSIONS[role] ?? []) {
+      granted.add(permission);
+    }
+  }
+
+  return ALL_PERMISSIONS.filter((permission) => granted.has(permission));
+}
+
+export function can(user, permission) {
+  if (typeof permission !== "string") {
+    return false;
+  }
+  return getPermissions(user).includes(permission);
+}
+
+export function canAny(user, permissions) {
+  if (!Array.isArray(permissions)) {
+    return false;
+  }
+  const granted = getPermissions(user);
+  return permissions.some((permission) => granted.includes(permission));
+}
+
+export function isStaff(user) {
+  return hasAnyRole(user, [
+    ROLES.ADMIN,
+    ROLES.TOUR_MANAGER,
+    ROLES.TOUR_GUIDE,
+  ]);
 }
 
 export async function fetchCurrentUser(session) {

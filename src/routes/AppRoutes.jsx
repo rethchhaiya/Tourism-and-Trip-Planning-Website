@@ -2,14 +2,13 @@ import { Route, Routes } from "react-router-dom";
 import Sidebar from "../components/layout/Sidebar";
 import ScrollToTop from "../components/layout/ScrollToTop";
 import RequireAuth from "../components/layout/RequireAuth";
-import RequireRole from "../components/layout/RequireRole";
-import { ROLES } from "../services/roleAdapter";
+import RequirePermission from "../components/layout/RequirePermission";
+import { ROUTE_ACCESS } from "./routeAccess";
 import RevenueOverview from "../components/admin/dashboard/RevenueOverview";
 import DestinationForm from "../pages/admin/destinations/DestinationForm";
 import DestinationsList from "../pages/admin/destinations/DestinationsList";
 import BookingList from "../pages/admin/bookings/BookingList";
 import Customers from "../components/admin/customers/Customers";
-import DashboardOverview from "../pages/admin/dashboard/DashboardOverview";
 import ExperienceDetail from "../pages/public/ExperienceDetail";
 import CreateCustomer from "../pages/admin/customers/CreateCustomer";
 import CreateUsers from "../pages/admin/users/CreateUsers";
@@ -31,7 +30,7 @@ import HomePage from "../pages/public/HomePage";
 import ToursDetailContent from "../components/tour/ToursDetailContent/ToursDetailContent";
 import PopularDestinations from "../components/tour/PopularDestinations";
 import TopAttractions from "../pages/public/TopAttractions";
-import DestinationsPage from "../pages/public/DestinationsPage";
+import DestinationsPage from "../pages/public/DestinationsPublicPage";
 import { AvailableTours } from "../pages/public/AvailableTours";
 import ToursCatalogPage from "../pages/public/ToursCatalogPage";
 import TourDetailPage from "../pages/public/TourDetailPage";
@@ -39,6 +38,8 @@ import ToursPage from "../pages/public/ToursPage";
 import CategoriesPage from "../pages/public/CategoriesPage";
 import AboutPage from "../pages/public/AboutPage";
 import ContactPage from "../pages/public/ContactPage";
+import TourListPage from "../pages/admin/tours/TourListPage";
+import DashboardEntry from "../components/layout/DashboardEntry";
 
 const HERO_IMAGES = [
   "https://i.pinimg.com/1200x/ed/bf/73/edbf7353393cc3d039792dc89a0dd4b6.jpg",
@@ -74,36 +75,78 @@ export default function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/detail-content" element={<ToursDetailContent />} />
+        
         <Route element={<RequireAuth />}>
-          {/* Admin shell: customers are blocked with a 403 page.
-              TODO(role-matrix): revisit allowed roles once the backend role
-              contract is final; add finer-grained RequireRole guards per route. */}
-          <Route
-            element={
-              <RequireRole
-                roles={[ROLES.ADMIN, ROLES.TOUR_MANAGER, ROLES.TOUR_GUIDE]}
-              />
-            }
-          >
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/dashboard"]} />}>
             <Route element={<Sidebar />}>
-              <Route path="/listbooking" element={<BookingList />} />
-              <Route path="/customer" element={<Customers />} />
-              <Route path="/destination" element={<DestinationForm />} />
-              <Route path="/table_destinations" element={<DestinationsList />} />
+              <Route path="/sidebar" element={<DashboardEntry />} />
+              <Route path="/dashboard" element={<DashboardEntry />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/overview"]} />}>
+            <Route element={<Sidebar />}>
               <Route path="/overview" element={<RevenueOverview />} />
-              <Route path="/sidebar" element={<DashboardOverview />} />
-              <Route path="/createcustomer" element={<CreateCustomer />} />
-              <Route path="/create-user" element={<CreateUsers />} />
-              <Route path="/users" element={<PageListUser />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/guides" element={<GuidesList />} />
-              <Route path="/admin/destinations" element={<DestinationsList />} />
-              <Route path="/bookings" element={<BookingList />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/dashboard" element={<DashboardOverview />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/popular"]} />}>
+            <Route element={<Sidebar />}>
               <Route path="/popular" element={<PopularDestinations />} />
               <Route path="/tour-light" element={<TourLight />} />
               <Route path="/authentic-khmer" element={<AuthenticKhmer />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/bookings"]} />}>
+            <Route element={<Sidebar />}>
+              <Route path="/listbooking" element={<BookingList />} />
+              <Route path="/bookings" element={<BookingList />} />
+            </Route>
+          </Route>
+
+          <Route
+            element={
+              <RequirePermission {...ROUTE_ACCESS["/table_destinations"]} />
+            }
+          >
+            <Route element={<Sidebar />}>
+              <Route path="/table_destinations" element={<DestinationsList />} />
+              <Route path="/admin/destinations" element={<DestinationsList />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/destination"]} />}>
+            <Route element={<Sidebar />}>
+              <Route path="/destination" element={<DestinationForm />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/admin/tours"]} />}>
+            <Route element={<Sidebar />}>
+              <Route path="/admin/tours" element={<TourListPage />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/guides"]} />}>
+            <Route element={<Sidebar />}>
+              <Route path="/guides" element={<GuidesList />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission adminOnly />}>
+            <Route element={<Sidebar />}>
+              <Route path="/customer" element={<Customers />} />
+              <Route path="/createcustomer" element={<CreateCustomer />} />
+              <Route path="/create-user" element={<CreateUsers />} />
+              <Route path="/users" element={<PageListUser />} />
+              <Route path="/customers" element={<Customers />} />
+            </Route>
+          </Route>
+
+          <Route element={<RequirePermission {...ROUTE_ACCESS["/settings"]} />}>
+            <Route element={<Sidebar />}>
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Route>
         </Route>

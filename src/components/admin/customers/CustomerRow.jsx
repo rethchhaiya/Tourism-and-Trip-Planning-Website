@@ -7,8 +7,10 @@ import {
 } from "lucide-react";
 
 import StatusBadge from "./StatusBadge";
+import { useAuth } from "../../../context/useAuth";
 
 export default function CustomerRow({ customer }) {
+  const { isAdmin } = useAuth();
   const deactivated = customer.status === "DEACTIVATED";
 
   return (
@@ -82,16 +84,18 @@ export default function CustomerRow({ customer }) {
             <Eye size={17} />
           </button>
 
-          <button
-            className="text-slate-400 transition hover:text-blue-600"
-            title={deactivated ? "Activate" : "Deactivate"}
-          >
-            {deactivated ? (
-              <CircleCheck size={17} />
-            ) : (
-              <CircleSlash2 size={17} />
-            )}
-          </button>
+          {isAdmin && (
+            <button
+              className="text-slate-400 transition hover:text-blue-600"
+              title={deactivated ? "Activate" : "Deactivate"}
+            >
+              {deactivated ? (
+                <CircleCheck size={17} />
+              ) : (
+                <CircleSlash2 size={17} />
+              )}
+            </button>
+          )}
 
           <button
             className="text-slate-400 transition hover:text-blue-600"

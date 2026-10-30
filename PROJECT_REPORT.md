@@ -7,6 +7,55 @@
 
 ---
 
+## Current implementation update (30 October 2026)
+
+This update supersedes earlier statements in this report about role-only admin
+access, the orphaned Tour list, test ignore rules, and local verification.
+
+### Permission and dashboard model
+
+Authorization is now role-and-permission based. `permissions.js` defines the
+permission matrix, `roleAdapter.js` derives a user's effective permissions,
+and `routeAccess.js` is the central policy used by both `RequirePermission`
+and the Sidebar.
+
+| Role | Sidebar and route access |
+|---|---|
+| Admin | Dashboard Overview, bookings, destinations, guides, tours, customers/users, settings, and all defined permissions |
+| Tour Manager | Bookings, destinations, tours, settings, and the actions assigned to its booking/category/location/tour permissions |
+| Tour Guide | View bookings, destinations, tours, and settings |
+| Customer | View/cancel/store bookings as allowed; view destinations, guides, tours, categories, and settings |
+
+`/dashboard` and `/sidebar` are authenticated dashboard entry routes. An admin
+sees `DashboardOverview`; every other role is redirected to `/bookings` so the
+dashboard shell remains usable without exposing overview metrics. `/overview`
+and the Dashboard item in the sidebar are admin-only.
+
+The existing `TourListPage` is no longer orphaned: it is available at
+`/admin/tours` and requires `view_tours`. Its create/edit/delete controls
+remain governed by their specific tour permissions.
+
+### Tests and verification
+
+The worktree contains authorization coverage in `permissions.test.js`,
+`roleAdapter.test.js`, `RequirePermission.test.jsx`, `Sidebar.test.jsx`,
+`AppRoutes.test.jsx`, and `adminButtons.test.jsx`. Test files are not excluded
+by the current `.gitignore`, although several are uncommitted worktree files.
+
+`npm run lint` currently completes with zero errors and one existing warning
+in `CategoriesPage.jsx` (`set-state-in-effect`). `npm test` and `npm run build`
+could not be re-run inside this sandbox because Vite config loading fails with
+Windows `spawn EPERM`, and the Tailwind Windows native module cannot be loaded.
+Run both commands in the normal local environment before committing.
+
+### Current uncommitted authorization work
+
+- `src/constants/permissions.js` and `src/routes/routeAccess.js`
+- `src/components/layout/RequirePermission.jsx` and `DashboardEntry.jsx`
+- `src/components/layout/Sidebar.jsx`, permission/sidebar tests, and route tests
+- `src/routes/AppRoutes.jsx`, including `/admin/tours`
+- Canonical public Header imports in Home and Destinations pages
+
 ## 1. Executive Summary
 
 `tour-trip` is a single-page travel booking frontend with two main surfaces:

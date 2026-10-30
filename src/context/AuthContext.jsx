@@ -7,10 +7,14 @@ import {
 import * as authService from "../services/authService";
 import { AuthContext } from "./useAuth";
 import {
+  can,
+  canAny,
   fetchCurrentUser,
+  getPermissions,
   getRoles,
   isAdmin,
   isCustomer,
+  isStaff,
   isTourGuide,
   isTourManager,
   resolveRole,
@@ -77,7 +81,11 @@ export function AuthProvider({ children }) {
       isLoading: isLoadingUser,
       roles: getRoles(user),
       role: resolveRole(user),
+      permissions: getPermissions(user),
+      can: (permission) => can(user, permission),
+      canAny: (permissions) => canAny(user, permissions),
       isAdmin: isAdmin(user),
+      isStaff: isStaff(user),
       isTourManager: isTourManager(user),
       isTourGuide: isTourGuide(user),
       isCustomer: isCustomer(user),

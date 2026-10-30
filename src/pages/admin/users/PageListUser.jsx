@@ -14,6 +14,7 @@ import {
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 import { users } from "../../../data/users";
+import { useAuth } from "../../../context/useAuth";
 
 const PAGE_SIZE = 5;
 
@@ -65,6 +66,7 @@ function PageButton({ children, active, disabled, onClick }) {
 }
 
 function PageListUser() {
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,13 +113,15 @@ function PageListUser() {
             </p>
           </div>
 
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#5146e5] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#4338ca]"
-          >
-            <FontAwesomeIcon icon={faUserPlus} />
-            Add User
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#5146e5] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#4338ca]"
+            >
+              <FontAwesomeIcon icon={faUserPlus} />
+              Add User
+            </button>
+          )}
         </div>
 
         <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -263,20 +267,24 @@ function PageListUser() {
                         >
                           <FontAwesomeIcon icon={faEye} />
                         </button>
-                        <button
-                          type="button"
-                          title="Edit user"
-                          className="transition hover:text-[#5146e5]"
-                        >
-                          <FontAwesomeIcon icon={faPen} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Delete user"
-                          className="transition hover:text-red-500"
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              title="Edit user"
+                              className="transition hover:text-[#5146e5]"
+                            >
+                              <FontAwesomeIcon icon={faPen} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete user"
+                              className="transition hover:text-red-500"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

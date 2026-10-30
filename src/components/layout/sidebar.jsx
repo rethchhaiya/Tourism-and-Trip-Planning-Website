@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Layers,
@@ -18,14 +18,20 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useAuth } from "../../context/useAuth";
+import { canAccessRoute } from "../../routes/routeAccess";
 
 const menuPaths = {
   DashBoard: ["/dashboard", "/sidebar"],
   Destinations: ["/table_destinations", "/destination", "/admin/destinations"],
   Guides: ["/guides"],
+  Tours: ["/admin/tours"],
   Bookings: ["/bookings", "/listbooking"],
   Customers: ["/customers", "/customer", "/createcustomer"],
   Settings: ["/settings"],
+};
+
+const menuAccessPaths = {
+  DashBoard: ["/overview"],
 };
 
 const sections = [
@@ -65,29 +71,42 @@ const Sidebar = () => {
   const [activeItem, setActiveItem] = useState("DashBoard");
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  const visibleSections = sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(({ name }) => {
+        const paths = menuAccessPaths[name] ?? menuPaths[name];
+        return Boolean(
+          paths?.some((path) => canAccessRoute(user, path)),
+        );
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className="flex min-h-screen bg-slate-100">
       <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-[#211E55] px-4 py-4 text-white">
         {/* Brand */}
         <div className="mb-4 flex h-14 items-center gap-3 border-b border-white/10 pb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#4F46E5] text-base font-bold text-white">
+          <Link
+            to="/home"
+            aria-label="Go to homepage"
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#4F46E5] text-base font-bold text-white transition-colors hover:bg-[#5b52ee]"
+          >
             T
-          </div>
+          </Link>
           <div className="min-w-0">
             <h1 className="text-sm font-semibold leading-tight text-white">TravelAdmin</h1>
             <p className="text-[11px] text-[#B8B6D9]">Management System</p>
           </div>
         </div>
 
-        {/* Navigation — admin management menu.
-            Hiding is UX only; the backend must still enforce access.
-            TODO(role-matrix): show per-role menu items once the backend role
-            contract is final (currently only admins see the menu). */}
-        {isAdmin && (
+        {/* Navigation — items are shown only when the user can open the route.
+            Hiding is UX only; the backend must still enforce access. */}
         <nav className="flex-1 space-y-5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {sections.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.label}>
               <p className="mb-2 px-3 text-[10px] font-semibold tracking-[0.14em] text-[#8f8dbd]">
                 {section.label}
@@ -151,7 +170,6 @@ const Sidebar = () => {
             </div>
           ))}
         </nav>
-        )}
 
         {/* Logout */}
         <div className="mt-auto border-t border-white/10 pt-3">

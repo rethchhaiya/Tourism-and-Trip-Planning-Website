@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useAuth } from '../../../context/useAuth'
+import { PERMISSIONS } from '../../../constants/permissions'
 
 const destinations = [
 	{ id: 'DST-1042', name: 'Santorini', country: 'Greece', tours: 12, status: 'Active', createdAt: 'Oct 12, 2023' },
@@ -7,6 +9,7 @@ const destinations = [
 ]
 
     function DestinationsList() {
+	const { can } = useAuth()
 	const [search, setSearch] = useState('')
 	const [country, setCountry] = useState('All Countries')
 	const [status, setStatus] = useState('All Statuses')
@@ -62,8 +65,10 @@ const destinations = [
 					<h1 className="text-2xl font-bold tracking-tight">Destinations</h1>
 					<p className="mt-1 text-xs text-slate-600">Manage travel destination master data</p>
 					</div>
+					    {can(PERMISSIONS.STORE_LOCATIONS) && (
 					    <button type="button" className="rounded bg-[#5146e5] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#4338ca]">
 						<span aria-hidden="true" className="mr-1">+</span>Add Destination</button>
+					    )}
 				    </div>
 				 
 				<div className="overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm">

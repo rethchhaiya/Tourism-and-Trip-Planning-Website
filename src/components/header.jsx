@@ -14,7 +14,7 @@ const navLinks = [
 
 const Header = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
 
   async function handleLogout() {
     await logout();
@@ -59,11 +59,19 @@ const Header = () => {
           >
             <TbHeartOff size={28} strokeWidth={1.8} />
           </button>
+          {isAuthenticated && (
+            <Link
+              to="/dashboard"
+              className="rounded-[5px] border border-[#10ad91] px-4 py-1.5 text-[11px] font-medium text-[#0d967d] transition-colors hover:bg-[#10ad91] hover:text-white"
+            >
+              Dashboard
+            </Link>
+          )}
           {isAuthenticated ? (
             <>
-              <span className="hidden text-[11px] font-medium text-[#142443] sm:block">
+              {/* <span className="hidden text-[11px] font-medium text-[#142443] sm:block">
                 {user?.name ?? user?.email}
-              </span>
+              </span> */}
               <button
                 type="button"
                 onClick={handleLogout}
