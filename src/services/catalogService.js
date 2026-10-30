@@ -24,6 +24,18 @@ export async function fetchTours({ page = 1, search = "", categoryId = "" } = {}
   };
 }
 
+// GET /tours/{id} returns the flat { message, data } envelope (no success
+// field). Detail is public, so a 401 must not redirect to the login page.
+export async function fetchTourById(id) {
+  const payload = await http.get(`/tours/${encodeURIComponent(String(id))}`, {
+    noAuthRedirect: true,
+  });
+  if (payload && typeof payload === "object" && "data" in payload) {
+    return payload.data ?? null;
+  }
+  return payload ?? null;
+}
+
 export async function fetchCategories() {
   return http.get("/categories");
 }

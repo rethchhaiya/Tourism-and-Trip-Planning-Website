@@ -1,22 +1,8 @@
-import React from 'react'
-import Header from '../../components/Header'
-import Footer from '../../components/Footer'
-import TourGallery from '../../components/tour/hero_section/TourGallery'
-import TourLight from './tour/TourLight'
-import Tours_detailContent from '../../components/tour/ToursDetailContent/ToursDetailContent'
+import ToursCatalogPage from "./ToursCatalogPage";
 
-const ToursPage = () => {
-  return (
-    <>
-      <Header/>
-      <main>
-        <TourGallery/>
-        <Tours_detailContent/>
-        <TourLight/>
-      </main>
-      <Footer/>
-    </>
-  )
+// /tours now shows the live GET /tours catalog. The old static demo
+// components (TourGallery, ToursDetailContent, TourLight) are intentionally
+// left in the repo but no longer rendered here.
+export default function ToursPage() {
+  return <ToursCatalogPage />;
 }
-
-export default ToursPage

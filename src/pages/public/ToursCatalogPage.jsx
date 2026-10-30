@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   fetchCategories,
   fetchTours,
@@ -14,7 +15,7 @@ import {
   matchesSearchTerm,
   normalizeTour,
 } from "../../utils/catalog";
-import Header from "../../components/header";
+import Header from "../../components/Header";
 
 const SEARCH_DEBOUNCE_MS = 400;
 // List responses do not include category data, so client-side category
@@ -37,50 +38,56 @@ function TourCard({ tour, index }) {
   const price = tour.displayPrice;
   const duration = formatDuration(tour);
   const showImage = Boolean(image) && !imageFailed;
+  const href = tour.id != null ? `/tours/${tour.id}` : "/tours/catalog";
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
-      <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-        {showImage ? (
-          <img
-            src={image}
-            alt={tour.title}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <div
-            data-testid="tour-image-fallback"
-            className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${placeholderGradient(index)}`}
-          >
-            <span className="text-4xl font-bold text-white/80">
-              {(tour.title?.trim()?.[0] ?? "T").toUpperCase()}
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <h3 className="line-clamp-2 text-base font-semibold text-slate-900">
-          {tour.title}
-        </h3>
-        {duration && (
-          <p className="flex items-center gap-1.5 text-sm text-slate-500">
-            <span aria-hidden="true">🕓</span>
-            {duration}
-          </p>
-        )}
-        <div className="mt-auto flex items-center justify-between pt-2">
-          {price != null ? (
-            <span className="text-lg font-bold text-slate-900">
-              {formatCurrency(price)}
-            </span>
+    <Link
+      to={href}
+      className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+    >
+      <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+        <div className="relative h-44 w-full overflow-hidden bg-slate-100">
+          {showImage ? (
+            <img
+              src={image}
+              alt={tour.title}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
           ) : (
-            <span className="text-sm text-slate-400">Price on request</span>
+            <div
+              data-testid="tour-image-fallback"
+              className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${placeholderGradient(index)}`}
+            >
+              <span className="text-4xl font-bold text-white/80">
+                {(tour.title?.trim()?.[0] ?? "T").toUpperCase()}
+              </span>
+            </div>
           )}
         </div>
-      </div>
-    </article>
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          <h3 className="line-clamp-2 text-base font-semibold text-slate-900">
+            {tour.title}
+          </h3>
+          {duration && (
+            <p className="flex items-center gap-1.5 text-sm text-slate-500">
+              <span aria-hidden="true">🕓</span>
+              {duration}
+            </p>
+          )}
+          <div className="mt-auto flex items-center justify-between pt-2">
+            {price != null ? (
+              <span className="text-lg font-bold text-slate-900">
+                {formatCurrency(price)}
+              </span>
+            ) : (
+              <span className="text-sm text-slate-400">Price on request</span>
+            )}
+          </div>
+        </div>
+      </article>
+    </Link>
   );
 }
 
@@ -171,19 +178,20 @@ export default function ToursCatalogPage() {
   const [tours, setTours] = useState([]);
   const [meta, setMeta] = useState(null);
   const [total, setTotal] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(
     CATEGORY_FILTER_ENABLED,
   );
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [completedRequestKey, setCompletedRequestKey] = useState("");
+  const requestKey = `${page}|${debouncedSearch}|${categoryId}|${reloadKey}`;
+  const isLoading = completedRequestKey !== requestKey;
 
   useEffect(() => {
     if (!CATEGORY_FILTER_ENABLED) {
       return undefined;
     }
     let cancelled = false;
-    setIsCategoriesLoading(true);
     fetchCategories()
       .then((data) => {
         if (!cancelled) {
@@ -207,8 +215,6 @@ export default function ToursCatalogPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError("");
     fetchTours({
       page,
       search: debouncedSearch,
@@ -222,6 +228,7 @@ export default function ToursCatalogPage() {
           .map(normalizeTour)
           .filter(isPublishedTour)
           .filter((tour) => matchesSearchTerm(tour.title, debouncedSearch));
+        setError("");
         setTours(visible);
         setMeta(nextMeta);
         setTotal(nextMeta?.total ?? null);
@@ -239,17 +246,13 @@ export default function ToursCatalogPage() {
       })
       .finally(() => {
         if (!cancelled) {
-          setIsLoading(false);
+          setCompletedRequestKey(requestKey);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [page, debouncedSearch, categoryId, reloadKey]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, categoryId]);
+  }, [page, debouncedSearch, categoryId, reloadKey, requestKey]);
 
   function handleRetry() {
     setReloadKey((key) => key + 1);
@@ -287,7 +290,10 @@ export default function ToursCatalogPage() {
             name="search"
             placeholder="Search tours by title..."
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              setPage(1);
+            }}
             className={css.input}
           />
 
@@ -295,7 +301,10 @@ export default function ToursCatalogPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setCategoryId("")}
+                onClick={() => {
+                  setCategoryId("");
+                  setPage(1);
+                }}
                 className={css.chip(categoryId === "")}
               >
                 All categories
@@ -306,13 +315,14 @@ export default function ToursCatalogPage() {
                     <button
                       key={category.id}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
                         setCategoryId((current) =>
                           current === String(category.id)
                             ? ""
                             : String(category.id),
-                        )
-                      }
+                        );
+                        setPage(1);
+                      }}
                       className={css.chip(categoryId === String(category.id))}
                     >
                       {category.name}
@@ -322,7 +332,13 @@ export default function ToursCatalogPage() {
           )}
         </div>
 
-        {error ? (
+        {isLoading ? (
+          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2, 3, 4, 5].map((key) => (
+              <TourCardSkeleton key={key} />
+            ))}
+          </div>
+        ) : error ? (
           <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center">
             <p role="alert" className="font-medium text-red-600">
               {error}
@@ -334,12 +350,6 @@ export default function ToursCatalogPage() {
             >
               Retry
             </button>
-          </div>
-        ) : isLoading ? (
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2, 3, 4, 5].map((key) => (
-              <TourCardSkeleton key={key} />
-            ))}
           </div>
         ) : tours.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
@@ -358,6 +368,7 @@ export default function ToursCatalogPage() {
                 onClick={() => {
                   setSearchTerm("");
                   setCategoryId("");
+                  setPage(1);
                 }}
                 className="mt-5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
               >

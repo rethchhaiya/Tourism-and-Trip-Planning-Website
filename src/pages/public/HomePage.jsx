@@ -5,7 +5,7 @@ import PopularDestinations from '../../components/tour/PopularDestinations'
 import WhyChooseUs from '../../components/tour/WhyChooseUs'
 import HeroSection from './HeroSection'
 import FeaturedTourPackages from './TourPackages'
-import Header from '../../components/Header'
+import Header from '../../components/header'
 import Footer from '../../components/Footer'
 
 const HERO_IMAGES = [

@@ -34,6 +34,7 @@ import TopAttractions from "../pages/public/TopAttractions";
 import DestinationsPage from "../pages/public/DestinationsPage";
 import { AvailableTours } from "../pages/public/AvailableTours";
 import ToursCatalogPage from "../pages/public/ToursCatalogPage";
+import TourDetailPage from "../pages/public/TourDetailPage";
 import ToursPage from "../pages/public/ToursPage";
 import CategoriesPage from "../pages/public/CategoriesPage";
 import AboutPage from "../pages/public/AboutPage";
@@ -55,6 +56,7 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/tours" element={<ToursPage />} />
         <Route path="/tours/catalog" element={<ToursCatalogPage />} />
+        <Route path="/tours/:id" element={<TourDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/destinations" element={<DestinationsPage />} />
         <Route path="/destinations/mondulkiri" element={<DestinationDetail />} />
