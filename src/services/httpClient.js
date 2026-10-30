@@ -50,10 +50,17 @@ function unwrap(body) {
     body &&
     typeof body === "object" &&
     !Array.isArray(body) &&
-    "success" in body &&
     "data" in body
   ) {
-    return body.data ?? null;
+    // Paginated envelopes carry the page items plus meta/links. Keep the
+    // envelope intact so callers can read pagination; only unwrap the plain
+    // { success, data } shape used by auth and categories.
+    if (body.meta != null || body.links != null) {
+      return body;
+    }
+    if ("success" in body) {
+      return body.data ?? null;
+    }
   }
   return body;
 }

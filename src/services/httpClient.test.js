@@ -50,6 +50,18 @@ describe(" httpClient header handling", () => {
     expect(init.headers.Authorization).toBeUndefined();
   });
 
+  it("keeps pagination meta and links when there is no success field", async () => {
+    const body = {
+      data: [{ id: 1 }],
+      links: { first: "?page=1", last: "?page=1", prev: null, next: null },
+      meta: { current_page: 1, last_page: 1, per_page: 10, total: 1 },
+      message: "Tours retrieved successfully",
+    };
+    fetch.mockResolvedValue(jsonResponse(200, body));
+
+    await expect(http.get("/tours")).resolves.toEqual(body);
+  });
+
   it("drops Content-Type when the body is FormData", async () => {
     fetch.mockResolvedValue(jsonResponse(200, { success: true, data: { id: 7 } }));
     const formData = new FormData();

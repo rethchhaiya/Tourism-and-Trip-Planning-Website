@@ -12,12 +12,14 @@ import {
   isActiveCategory,
   isPublishedTour,
   matchesSearchTerm,
-  primaryTourImage,
-  tourCategoryIds,
+  normalizeTour,
 } from "../../utils/catalog";
-import Header from "../../components/Header";
+import Header from "../../components/header";
 
 const SEARCH_DEBOUNCE_MS = 400;
+// List responses do not include category data, so client-side category
+// filtering is not possible. Flip this on once the API supports it.
+const CATEGORY_FILTER_ENABLED = false;
 
 function placeholderGradient(index) {
   const gradients = [
@@ -30,22 +32,26 @@ function placeholderGradient(index) {
 }
 
 function TourCard({ tour, index }) {
-  const image = primaryTourImage(tour);
-  const price = tour.price_override ?? tour.base_price;
+  const [imageFailed, setImageFailed] = useState(false);
+  const image = tour.primaryImage;
+  const price = tour.displayPrice;
   const duration = formatDuration(tour);
+  const showImage = Boolean(image) && !imageFailed;
 
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
       <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-        {image ? (
+        {showImage ? (
           <img
             src={image}
             alt={tour.title}
             className="h-full w-full object-cover"
             loading="lazy"
+            onError={() => setImageFailed(true)}
           />
         ) : (
           <div
+            data-testid="tour-image-fallback"
             className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${placeholderGradient(index)}`}
           >
             <span className="text-4xl font-bold text-white/80">
@@ -65,7 +71,7 @@ function TourCard({ tour, index }) {
           </p>
         )}
         <div className="mt-auto flex items-center justify-between pt-2">
-          {price ? (
+          {price != null ? (
             <span className="text-lg font-bold text-slate-900">
               {formatCurrency(price)}
             </span>
@@ -98,11 +104,15 @@ function emptyMeta(lastPage) {
 function Pagination({ meta, page, onPageChange }) {
   const info = meta ?? emptyMeta(1);
   const lastPage = Math.max(1, Number(info.last_page) || 1);
+  const currentPage = Math.min(
+    lastPage,
+    Math.max(1, Number(info.current_page) || page),
+  );
   if (lastPage <= 1) {
     return null;
   }
 
-  const windowStart = Math.max(1, page - 2);
+  const windowStart = Math.max(1, currentPage - 2);
   const windowEnd = Math.min(lastPage, windowStart + 4);
   const pages = [];
   for (let number = windowStart; number <= windowEnd; number += 1) {
@@ -123,8 +133,8 @@ function Pagination({ meta, page, onPageChange }) {
     >
       <button
         type="button"
-        onClick={() => onPageChange(page - 1)}
-        disabled={page <= 1}
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage <= 1}
         className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Previous
@@ -134,16 +144,16 @@ function Pagination({ meta, page, onPageChange }) {
           key={number}
           type="button"
           onClick={() => onPageChange(number)}
-          aria-current={number === page ? "page" : undefined}
-          className={buttonClass(number === page)}
+          aria-current={number === currentPage ? "page" : undefined}
+          className={buttonClass(number === currentPage)}
         >
           {number}
         </button>
       ))}
       <button
         type="button"
-        onClick={() => onPageChange(page + 1)}
-        disabled={page >= lastPage}
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage >= lastPage}
         className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Next
@@ -162,11 +172,16 @@ export default function ToursCatalogPage() {
   const [meta, setMeta] = useState(null);
   const [total, setTotal] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(
+    CATEGORY_FILTER_ENABLED,
+  );
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (!CATEGORY_FILTER_ENABLED) {
+      return undefined;
+    }
     let cancelled = false;
     setIsCategoriesLoading(true);
     fetchCategories()
@@ -194,21 +209,19 @@ export default function ToursCatalogPage() {
     let cancelled = false;
     setIsLoading(true);
     setError("");
-    fetchTours({ page, search: debouncedSearch, categoryId })
+    fetchTours({
+      page,
+      search: debouncedSearch,
+      categoryId: CATEGORY_FILTER_ENABLED ? categoryId : "",
+    })
       .then(({ tours: rows, meta: nextMeta }) => {
         if (cancelled) {
           return;
         }
-        const visible = rows.filter(isPublishedTour).filter((tour) => {
-          if (!matchesSearchTerm(tour.title, debouncedSearch)) {
-            return false;
-          }
-          const categoryIds = tourCategoryIds(tour);
-          if (categoryId && categoryIds.length > 0) {
-            return categoryIds.includes(Number(categoryId));
-          }
-          return true;
-        });
+        const visible = rows
+          .map(normalizeTour)
+          .filter(isPublishedTour)
+          .filter((tour) => matchesSearchTerm(tour.title, debouncedSearch));
         setTours(visible);
         setMeta(nextMeta);
         setTotal(nextMeta?.total ?? null);
@@ -278,33 +291,35 @@ export default function ToursCatalogPage() {
             className={css.input}
           />
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setCategoryId("")}
-              className={css.chip(categoryId === "")}
-            >
-              All categories
-            </button>
-            {isCategoriesLoading
-              ? null
-              : categories.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() =>
-                      setCategoryId((current) =>
-                        current === String(category.id)
-                          ? ""
-                          : String(category.id),
-                      )
-                    }
-                    className={css.chip(categoryId === String(category.id))}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-          </div>
+          {CATEGORY_FILTER_ENABLED && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setCategoryId("")}
+                className={css.chip(categoryId === "")}
+              >
+                All categories
+              </button>
+              {isCategoriesLoading
+                ? null
+                : categories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() =>
+                        setCategoryId((current) =>
+                          current === String(category.id)
+                            ? ""
+                            : String(category.id),
+                        )
+                      }
+                      className={css.chip(categoryId === String(category.id))}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+            </div>
+          )}
         </div>
 
         {error ? (
@@ -335,9 +350,9 @@ export default function ToursCatalogPage() {
               No tours found
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Try a different search term or clear the category filter.
+              Try a different search term.
             </p>
-            {(searchTerm || categoryId) && (
+            {(searchTerm || (CATEGORY_FILTER_ENABLED && categoryId)) && (
               <button
                 type="button"
                 onClick={() => {
