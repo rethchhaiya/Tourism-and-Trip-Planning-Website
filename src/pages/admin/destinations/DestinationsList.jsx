@@ -6,7 +6,7 @@ const destinations = [
 	{ id: 'DST-1044', name: 'Zermatt', country: 'Switzerland', tours: 8, status: 'Inactive', createdAt: 'Nov 02, 2023' },
 ]
 
-    function Destinations() {
+    function DestinationsList() {
 	const [search, setSearch] = useState('')
 	const [country, setCountry] = useState('All Countries')
 	const [status, setStatus] = useState('All Statuses')
@@ -114,4 +114,4 @@ const destinations = [
 	)
 }
 
-export default Destinations
+export default DestinationsList

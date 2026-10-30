@@ -5,8 +5,8 @@ import RequireAuth from "../components/layout/RequireAuth";
 import RequireRole from "../components/layout/RequireRole";
 import { ROLES } from "../services/roleAdapter";
 import RevenueOverview from "../components/admin/dashboard/RevenueOverview";
-import Destination from "../pages/admin/destinations/Destination";
-import Destinations from "../pages/admin/destinations/Destinations";
+import DestinationForm from "../pages/admin/destinations/DestinationForm";
+import DestinationsList from "../pages/admin/destinations/DestinationsList";
 import BookingList from "../pages/admin/bookings/BookingList";
 import Customers from "../components/admin/customers/Customers";
 import DashboardOverview from "../pages/admin/dashboard/DashboardOverview";
@@ -34,6 +34,7 @@ import TopAttractions from "../pages/public/TopAttractions";
 import DestinationsPage from "../pages/public/DestinationsPage";
 import { AvailableTours } from "../pages/public/AvailableTours";
 import ToursCatalogPage from "../pages/public/ToursCatalogPage";
+import ToursPage from "../pages/public/ToursPage";
 import CategoriesPage from "../pages/public/CategoriesPage";
 import AboutPage from "../pages/public/AboutPage";
 import ContactPage from "../pages/public/ContactPage";
@@ -52,7 +53,8 @@ export default function AppRoutes() {
     <>
       <ScrollToTop />
       <Routes>
-        <Route path="/tours" element={<ToursCatalogPage />} />
+        <Route path="/tours" element={<ToursPage />} />
+        <Route path="/tours/catalog" element={<ToursCatalogPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/destinations" element={<DestinationsPage />} />
         <Route path="/destinations/mondulkiri" element={<DestinationDetail />} />
@@ -84,8 +86,8 @@ export default function AppRoutes() {
             <Route element={<Sidebar />}>
               <Route path="/listbooking" element={<BookingList />} />
               <Route path="/customer" element={<Customers />} />
-              <Route path="/destination" element={<Destination />} />
-              <Route path="/table_destinations" element={<Destinations />} />
+              <Route path="/destination" element={<DestinationForm />} />
+              <Route path="/table_destinations" element={<DestinationsList />} />
               <Route path="/overview" element={<RevenueOverview />} />
               <Route path="/sidebar" element={<DashboardOverview />} />
               <Route path="/createcustomer" element={<CreateCustomer />} />
@@ -93,7 +95,7 @@ export default function AppRoutes() {
               <Route path="/users" element={<PageListUser />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/guides" element={<GuidesList />} />
-              <Route path="/admin/destinations" element={<Destinations />} />
+              <Route path="/admin/destinations" element={<DestinationsList />} />
               <Route path="/bookings" element={<BookingList />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/dashboard" element={<DashboardOverview />} />

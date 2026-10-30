@@ -6,7 +6,7 @@ import { useAuth } from "../context/useAuth";
 const navLinks = [
   { label: "Home", to: "/" },
   { label: "Tours", to: "/tours" },
-  { label: "Categories", to: "/categories" },
+  // { label: "Categories", to: "/categories" },
   { label: "Destinations", to: "/destinations" },
   { label: "About Us", to: "/about" },
   { label: "Contact", to: "/contact" },

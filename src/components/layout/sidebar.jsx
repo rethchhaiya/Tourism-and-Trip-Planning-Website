@@ -21,7 +21,7 @@ import { useAuth } from "../../context/useAuth";
 
 const menuPaths = {
   DashBoard: ["/dashboard", "/sidebar"],
-  Destinations: ["/", "/destination", "/destinations", "/table_destinations"],
+  Destinations: ["/table_destinations", "/destination", "/admin/destinations"],
   Guides: ["/guides"],
   Bookings: ["/bookings", "/listbooking"],
   Customers: ["/customers", "/customer", "/createcustomer"],
@@ -115,7 +115,7 @@ const Sidebar = () => {
                       onClick={() => {
                         setActiveItem(name);
                         if (menuPaths[name]) {
-                          navigate(name === "Destinations" ? "/destinations" : menuPaths[name][0]);
+                          navigate(menuPaths[name][0]);
                         }
                       }}
                       className={[
