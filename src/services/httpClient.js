@@ -99,6 +99,7 @@ async function request(
     body,
     headers: customHeaders,
     noAuthRedirect = false,
+    unwrap: shouldUnwrap = true,
     ...fetchOptions
   } = {},
 ) {
@@ -145,7 +146,7 @@ async function request(
     throw normalizeError(response.status, data);
   }
 
-  return unwrap(data);
+  return shouldUnwrap ? unwrap(data) : data;
 }
 
 export const http = {

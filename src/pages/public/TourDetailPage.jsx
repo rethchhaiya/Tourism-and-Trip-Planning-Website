@@ -3,6 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { fetchTourById } from "../../services/catalogService";
+import { getSession } from "../../services/authService";
+import { can } from "../../services/roleAdapter";
+import { PERMISSIONS } from "../../constants/permissions";
 import {
   formatDuration,
   isPublishedStatus,
@@ -151,6 +154,9 @@ function DetailError({ onRetry }) {
 function TourDetailContent({ tour }) {
   const duration = formatDuration(tour);
   const price = tour.displayPrice;
+  const session = getSession();
+  const isAuthenticated = Boolean(session?.token);
+  const canBook = can(session?.user ?? null, PERMISSIONS.STORE_BOOKINGS);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 md:px-8">
@@ -332,11 +338,36 @@ function TourDetailContent({ tour }) {
                             </p>
                           )}
                         </div>
-                        {closed && (
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
-                            Closed
-                          </span>
-                        )}
+                        <div className="flex flex-col items-start gap-2 sm:items-end">
+                          {closed && (
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                              Closed
+                            </span>
+                          )}
+                          {!closed &&
+                            !soldOut &&
+                            isPublishedStatus(schedule.status) &&
+                            (isAuthenticated ? (
+                              canBook ? (
+                                <Link
+                                  to={`/tours/${tour.id}/book?schedule=${schedule.id}`}
+                                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                                >
+                                  Book this departure
+                                </Link>
+                              ) : null
+                            ) : (
+                              <Link
+                                to="/login"
+                                state={{
+                                  from: `/tours/${tour.id}/book?schedule=${schedule.id}`,
+                                }}
+                                className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
+                              >
+                                Log in to book
+                              </Link>
+                            ))}
+                        </div>
                       </div>
                     </li>
                   );

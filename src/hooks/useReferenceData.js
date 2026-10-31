@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  fetchReferenceData,
+  fetchReferenceDataResult,
   normalizeReferenceKeys,
 } from "../services/referenceService";
 
@@ -29,12 +29,12 @@ export function useReferenceData(keys) {
     let cancelled = false;
     const requested = signature ? signature.split(",") : [];
 
-    fetchReferenceData(requested)
-      .then((data) => {
+    fetchReferenceDataResult(requested)
+      .then(({ data, missingKeys }) => {
         if (cancelled) {
           return;
         }
-        setResult({ signature, attempt, data, error: null });
+        setResult({ signature, attempt, data, missingKeys, error: null });
       })
       .catch((error) => {
         if (cancelled) {
@@ -44,6 +44,7 @@ export function useReferenceData(keys) {
           signature,
           attempt,
           data: emptyLists(requested),
+          missingKeys: requested,
           error,
         });
       });
@@ -64,6 +65,7 @@ export function useReferenceData(keys) {
 
   return {
     data: current ? current.data : emptyLists(requestedKeys),
+    missingKeys: current ? current.missingKeys : [],
     loading: current === null,
     error: current ? current.error : null,
     retry,

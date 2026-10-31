@@ -40,6 +40,9 @@ import AboutPage from "../pages/public/AboutPage";
 import ContactPage from "../pages/public/ContactPage";
 import TourListPage from "../pages/admin/tours/TourListPage";
 import DashboardEntry from "../components/layout/DashboardEntry";
+import BookingPage from "../pages/customer/BookingPage";
+import PaymentPlaceholderPage from "../pages/payment/PaymentPlaceholderPage";
+import { PERMISSIONS } from "../constants/permissions";
 
 const HERO_IMAGES = [
   "https://i.pinimg.com/1200x/ed/bf/73/edbf7353393cc3d039792dc89a0dd4b6.jpg",
@@ -77,6 +80,16 @@ export default function AppRoutes() {
         <Route path="/detail-content" element={<ToursDetailContent />} />
         
         <Route element={<RequireAuth />}>
+          <Route
+            element={
+              <RequirePermission permission={PERMISSIONS.STORE_BOOKINGS} />
+            }
+          >
+            <Route path="/tours/:id/book" element={<BookingPage />} />
+          </Route>
+
+          <Route path="/payment/:bookingId" element={<PaymentPlaceholderPage />} />
+
           <Route element={<RequirePermission {...ROUTE_ACCESS["/dashboard"]} />}>
             <Route element={<Sidebar />}>
               <Route path="/sidebar" element={<DashboardEntry />} />

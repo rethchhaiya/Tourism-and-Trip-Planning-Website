@@ -62,6 +62,23 @@ describe(" httpClient header handling", () => {
     await expect(http.get("/tours")).resolves.toEqual(body);
   });
 
+  it("keeps the full response body with unwrap:false", async () => {
+    const body = {
+      success: true,
+      message: "Booking created.",
+      data: { id: 10, total_price: "250.00" },
+      payment: { id: 20, booking_id: 10 },
+      gateway: { tran_id: "tran-1", response: { qrString: "qr" } },
+    };
+    fetch.mockResolvedValue(jsonResponse(200, body));
+
+    const data = await http.post("/bookings", {}, { unwrap: false });
+
+    expect(data).toEqual(body);
+    const init = fetch.mock.calls[0][1];
+    expect(init).not.toHaveProperty("unwrap");
+  });
+
   it("drops Content-Type when the body is FormData", async () => {
     fetch.mockResolvedValue(jsonResponse(200, { success: true, data: { id: 7 } }));
     const formData = new FormData();

@@ -4,7 +4,7 @@ export const REFERENCE_KEYS = Object.freeze([
   "booking_statuses",
   "booking_types",
   "participant_sex",
-  "payment_method",
+  "payment_methods",
   "payment_statuses",
   "user_statuses",
   "tour_statuses",
@@ -78,7 +78,9 @@ function startFetch(keys) {
     }
     const lists = extractLists(payload);
     for (const key of keys) {
-      cache.set(key, Array.isArray(lists[key]) ? lists[key] : []);
+      if (Array.isArray(lists[key])) {
+        cache.set(key, lists[key]);
+      }
     }
   })();
 
@@ -100,24 +102,37 @@ function pick(keys) {
   return result;
 }
 
-export async function fetchReferenceData(keys) {
+async function loadReferenceData(keys) {
   const requested = normalizeReferenceKeys(keys);
 
-  while (requested.length > 0) {
-    if (requested.every((key) => cache.has(key))) {
-      break;
-    }
+  if (requested.length > 0) {
+    let missing = requested.filter((key) => !cache.has(key));
 
-    if (inFlightPromise) {
+    if (missing.length > 0 && inFlightPromise) {
       await inFlightPromise;
-      continue;
+      missing = requested.filter((key) => !cache.has(key));
     }
 
-    const missing = requested.filter((key) => !cache.has(key));
-    await startFetch(missing);
+    if (missing.length > 0) {
+      await startFetch(missing);
+    }
   }
 
-  return pick(requested);
+  return {
+    data: pick(requested),
+    missingKeys: requested.filter((key) => !cache.has(key)),
+  };
+}
+
+// Lists that are absent from the response are returned as empty arrays for the
+// UI and reported in missingKeys so a caller can offer a retry.
+export async function fetchReferenceDataResult(keys) {
+  return loadReferenceData(keys);
+}
+
+export async function fetchReferenceData(keys) {
+  const { data } = await loadReferenceData(keys);
+  return data;
 }
 
 export function clearReferenceCache() {

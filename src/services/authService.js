@@ -1,4 +1,5 @@
 import { http } from "./httpClient";
+import { clearAllBookingResults } from "../utils/bookingStorage";
 
 const SESSION_STORAGE_KEY = "traveladmin.session";
 const REMEMBERED_EMAIL_KEY = "traveladmin.rememberedEmail";
@@ -214,6 +215,7 @@ export function absorbGoogleTokenFromUrl() {
 export async function logout({ callServer = true } = {}) {
   const session = getSession();
 
+  clearAllBookingResults();
   localStorage.removeItem(SESSION_STORAGE_KEY);
 
   if (!callServer || !getApiBaseUrl() || !session?.token) {

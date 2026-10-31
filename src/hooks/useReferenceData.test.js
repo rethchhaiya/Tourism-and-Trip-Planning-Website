@@ -5,11 +5,11 @@ vi.mock("../services/referenceService", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    fetchReferenceData: vi.fn(),
+    fetchReferenceDataResult: vi.fn(),
   };
 });
 
-import { fetchReferenceData } from "../services/referenceService";
+import { fetchReferenceDataResult } from "../services/referenceService";
 import {
   getLabel,
   getOptions,
@@ -24,12 +24,15 @@ const TOUR_STATUSES = [
 ];
 
 beforeEach(() => {
-  fetchReferenceData.mockReset();
+  fetchReferenceDataResult.mockReset();
 });
 
 describe("useReferenceData", () => {
   it("returns loading then the requested lists", async () => {
-    fetchReferenceData.mockResolvedValue({ tour_statuses: TOUR_STATUSES });
+    fetchReferenceDataResult.mockResolvedValue({
+      data: { tour_statuses: TOUR_STATUSES },
+      missingKeys: [],
+    });
 
     const { result } = renderHook(() => useReferenceData(["tour_statuses"]));
 
@@ -39,25 +42,46 @@ describe("useReferenceData", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.error).toBeNull();
+    expect(result.current.missingKeys).toEqual([]);
     expect(result.current.data.tour_statuses).toEqual(TOUR_STATUSES);
-    expect(fetchReferenceData).toHaveBeenCalledWith(["tour_statuses"]);
+    expect(fetchReferenceDataResult).toHaveBeenCalledWith(["tour_statuses"]);
+  });
+
+  it("reports lists that are missing from the response", async () => {
+    fetchReferenceDataResult.mockResolvedValue({
+      data: { tour_statuses: [], booking_types: TOUR_STATUSES },
+      missingKeys: ["tour_statuses"],
+    });
+
+    const { result } = renderHook(() =>
+      useReferenceData(["tour_statuses", "booking_types"]),
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.missingKeys).toEqual(["tour_statuses"]);
+    expect(result.current.data.tour_statuses).toEqual([]);
   });
 
   it("returns empty lists and an error when loading fails", async () => {
-    fetchReferenceData.mockRejectedValue(new Error("boom"));
+    fetchReferenceDataResult.mockRejectedValue(new Error("boom"));
 
     const { result } = renderHook(() => useReferenceData(["tour_statuses"]));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.missingKeys).toEqual(["tour_statuses"]);
     expect(result.current.data).toEqual({ tour_statuses: [] });
   });
 
   it("retries after a failure", async () => {
-    fetchReferenceData
+    fetchReferenceDataResult
       .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce({ tour_statuses: TOUR_STATUSES });
+      .mockResolvedValueOnce({
+        data: { tour_statuses: TOUR_STATUSES },
+        missingKeys: [],
+      });
 
     const { result } = renderHook(() => useReferenceData(["tour_statuses"]));
 
@@ -69,7 +93,7 @@ describe("useReferenceData", () => {
 
     expect(result.current.error).toBeNull();
     expect(result.current.data.tour_statuses).toEqual(TOUR_STATUSES);
-    expect(fetchReferenceData).toHaveBeenCalledTimes(2);
+    expect(fetchReferenceDataResult).toHaveBeenCalledTimes(2);
   });
 });
 

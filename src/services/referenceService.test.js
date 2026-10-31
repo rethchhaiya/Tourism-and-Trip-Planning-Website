@@ -9,13 +9,14 @@ import {
   REFERENCE_KEYS,
   clearReferenceCache,
   fetchReferenceData,
+  fetchReferenceDataResult,
 } from "./referenceService";
 
 const ALL_LISTS = {
   booking_statuses: [{ value: "pending", label: "Pending" }],
   booking_types: [{ value: "group", label: "Group" }],
   participant_sex: [{ value: "Male", label: "Male" }],
-  payment_method: [{ value: "cash", label: "Cash" }],
+  payment_methods: [{ value: "cash", label: "Cash" }],
   payment_statuses: [{ value: "paid", label: "Paid" }],
   user_statuses: [{ value: "active", label: "Active" }],
   tour_statuses: [
@@ -150,6 +151,23 @@ describe("fetchReferenceData", () => {
       tour_statuses: ALL_LISTS.tour_statuses,
     });
     expect(http.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns empty lists and reports missing keys", async () => {
+    http.get.mockResolvedValue({
+      tour_statuses: ALL_LISTS.tour_statuses,
+    });
+
+    const result = await fetchReferenceDataResult([
+      "tour_statuses",
+      "booking_types",
+    ]);
+
+    expect(result.data).toEqual({
+      tour_statuses: ALL_LISTS.tour_statuses,
+      booking_types: [],
+    });
+    expect(result.missingKeys).toEqual(["booking_types"]);
   });
 
   it("clearReferenceCache forces the next call to refetch", async () => {
