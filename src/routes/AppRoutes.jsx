@@ -41,7 +41,7 @@ import ContactPage from "../pages/public/ContactPage";
 import TourListPage from "../pages/admin/tours/TourListPage";
 import DashboardEntry from "../components/layout/DashboardEntry";
 import BookingPage from "../pages/customer/BookingPage";
-import PaymentPlaceholderPage from "../pages/payment/PaymentPlaceholderPage";
+import PaymentPage from "../pages/payment/PaymentPage";
 import { PERMISSIONS } from "../constants/permissions";
 
 const HERO_IMAGES = [
@@ -88,7 +88,7 @@ export default function AppRoutes() {
             <Route path="/tours/:id/book" element={<BookingPage />} />
           </Route>
 
-          <Route path="/payment/:bookingId" element={<PaymentPlaceholderPage />} />
+          <Route path="/payment/:bookingId" element={<PaymentPage />} />
 
           <Route element={<RequirePermission {...ROUTE_ACCESS["/dashboard"]} />}>
             <Route element={<Sidebar />}>
