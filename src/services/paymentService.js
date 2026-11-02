@@ -1,12 +1,23 @@
 import { http } from "./httpClient";
 
-const PAYMENT_STATUSES = new Set(["pending", "paid", "failed", "refunded"]);
+const STATUS_ALIASES = {
+  paid: "paid",
+  success: "paid",
+  approved: "paid",
+  failed: "failed",
+  failure: "failed",
+  declined: "failed",
+  rejected: "failed",
+  pending: "pending",
+  processing: "pending",
+  refunded: "refunded",
+};
 
 const STATUS_READERS = [
   (raw) => raw?.payment_status,
   (raw) => raw?.data?.payment_status,
-  (raw) => raw?.status,
   (raw) => raw?.data?.status,
+  (raw) => raw?.status,
 ];
 
 function collectResponseKeys(raw) {
@@ -27,31 +38,62 @@ function normalizeStatus(value) {
   }
 
   const status = value.trim().toLowerCase();
-  return PAYMENT_STATUSES.has(status) ? status : null;
+  return STATUS_ALIASES[status] ?? null;
 }
 
-// TODO(undocumented-response): GET /payments/{tran_id}/check-status has no
-// documented response body. Confirm the real shape, then replace the key
-// probing below with a fixed field read.
-export function mapPaymentStatus(raw) {
-  for (const readStatus of STATUS_READERS) {
-    const status = normalizeStatus(readStatus(raw));
-    if (status) {
-      return status;
+function isGatewayError(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return false;
+  }
+
+  const data = raw.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    if (
+      typeof data.status === "string" &&
+      data.status.trim().toLowerCase() === "error"
+    ) {
+      return true;
+    }
+    if (
+      typeof data.code === "number" &&
+      Number.isFinite(data.code) &&
+      data.code >= 400
+    ) {
+      return true;
     }
   }
 
-  if (import.meta.env.DEV && raw !== null && raw !== undefined) {
+  return raw.success === false;
+}
+
+// TODO(undocumented-response): confirm the real paid and pending values for
+// GET /payments/{tran_id}/check-status. Until then probe the known key names and
+// fall back to "pending" with unknown=true rather than assuming success.
+export function mapPaymentStatus(raw) {
+  if (isGatewayError(raw)) {
+    return { status: "error", unknown: false };
+  }
+
+  for (const readStatus of STATUS_READERS) {
+    const status = normalizeStatus(readStatus(raw));
+    if (status) {
+      return { status, unknown: false };
+    }
+  }
+
+  if (import.meta.env.DEV) {
     const keys = collectResponseKeys(raw);
+    const code =
+      raw && typeof raw === "object" ? raw.data?.code ?? raw.code : undefined;
     console.warn(
       `[paymentService] Unrecognised payment status response. Keys: ${
         keys.join(", ") || "(none)"
-      }`,
+      }${typeof code === "number" ? `. Code: ${code}` : ""}`,
     );
   }
 
-  return "pending";
-} 
+  return { status: "pending", unknown: true };
+}
 
 export async function checkPaymentStatus(tranId) {
   const payload = await http.get(

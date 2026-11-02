@@ -16,6 +16,7 @@ import { formatCurrency } from "../../utils/currency";
 const POLL_INTERVAL_MS = 5000;
 const MAX_CHECKS = 60;
 const MAX_CONSECUTIVE_FAILURES = 3;
+const MAX_CONSECUTIVE_UNKNOWNS = 10;
 const QR_IMAGE_PREFIX = "data:image/png;base64,";
 const DEEPLINK_PREFIXES = ["abamobilebank://", "https://"];
 const STORE_LINK_PREFIX = "https://";
@@ -148,10 +149,12 @@ export default function PaymentPage() {
     String(storedUserId) === String(currentUserId);
   const available = Boolean(stored && booking && ownsBooking);
 
-  const [status, setStatus] = useState(() => mapPaymentStatus(payment ?? {}));
-  const [failureCount, setFailureCount] = useState(0);
+  const [status, setStatus] = useState(
+    () => mapPaymentStatus(payment ?? {}).status,
+  );
   const [isChecking, setIsChecking] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const manualCheckRef = useRef(() => {});
 
   const canPoll =
@@ -165,19 +168,26 @@ export default function PaymentPage() {
     let cancelled = false;
     let timer = null;
     let checking = false;
+    let halted = false;
     let checks = 0;
     let failures = 0;
+    let unknowns = 0;
 
     function schedule(delay) {
-      if (cancelled) {
+      if (cancelled || halted) {
         return;
       }
       clearTimeout(timer);
       timer = setTimeout(run, delay);
     }
 
+    function stopForManualCheck() {
+      halted = true;
+      setStopped(true);
+    }
+
     async function run(manual = false) {
-      if (cancelled || checking) {
+      if (cancelled || checking || (halted && !manual)) {
         return;
       }
 
@@ -196,14 +206,47 @@ export default function PaymentPage() {
       setIsChecking(true);
 
       try {
-        const nextStatus = await checkPaymentStatus(tranId);
+        const result = await checkPaymentStatus(tranId);
         if (cancelled) {
           return;
         }
 
+        const nextStatus =
+          typeof result === "string" ? result : result?.status ?? "pending";
+        const unknown =
+          Boolean(result) &&
+          typeof result === "object" &&
+          result.unknown === true;
+
+        if (nextStatus === "error") {
+          failures += 1;
+
+          if (failures >= MAX_CONSECUTIVE_FAILURES) {
+            stopForManualCheck();
+            return;
+          }
+
+          if (checks >= MAX_CHECKS) {
+            setTimedOut(true);
+          } else {
+            schedule(POLL_INTERVAL_MS);
+          }
+          return;
+        }
+
         failures = 0;
-        setFailureCount(0);
         setStatus(nextStatus);
+
+        if (unknown) {
+          unknowns += 1;
+
+          if (unknowns >= MAX_CONSECUTIVE_UNKNOWNS) {
+            stopForManualCheck();
+            return;
+          }
+        } else {
+          unknowns = 0;
+        }
 
         if (nextStatus === "pending") {
           if (checks >= MAX_CHECKS) {
@@ -218,7 +261,11 @@ export default function PaymentPage() {
         }
 
         failures += 1;
-        setFailureCount(failures);
+
+        if (failures >= MAX_CONSECUTIVE_FAILURES) {
+          stopForManualCheck();
+          return;
+        }
 
         if (checks >= MAX_CHECKS) {
           setTimedOut(true);
@@ -237,8 +284,10 @@ export default function PaymentPage() {
       if (cancelled) {
         return;
       }
+      halted = false;
       failures = 0;
-      setFailureCount(0);
+      unknowns = 0;
+      setStopped(false);
       clearTimeout(timer);
       run(true);
     };
@@ -359,15 +408,14 @@ export default function PaymentPage() {
               )}
             </div>
 
-            {status === "pending" &&
-              failureCount >= MAX_CONSECUTIVE_FAILURES && (
-                <p
-                  role="alert"
-                  className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
-                >
-                  We could not check the payment
-                </p>
-              )}
+            {status === "pending" && stopped && (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+              >
+                We could not check the payment right now
+              </p>
+            )}
 
             {status === "pending" && timedOut && (
               <div

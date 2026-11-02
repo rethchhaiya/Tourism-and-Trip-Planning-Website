@@ -133,7 +133,7 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   checkPaymentStatus.mockReset();
-  checkPaymentStatus.mockResolvedValue("pending");
+  checkPaymentStatus.mockResolvedValue({ status: "pending", unknown: false });
 });
 
 afterEach(() => {
@@ -243,8 +243,8 @@ describe("PaymentPage polling", () => {
 
   it("polls every 5 seconds and stops on paid", async () => {
     checkPaymentStatus
-      .mockResolvedValueOnce("pending")
-      .mockResolvedValueOnce("paid");
+      .mockResolvedValueOnce({ status: "pending", unknown: false })
+      .mockResolvedValueOnce({ status: "paid", unknown: false });
     saveResult();
     await renderPayment();
 
@@ -276,7 +276,7 @@ describe("PaymentPage polling", () => {
   });
 
   it("stops after 60 checks", async () => {
-    checkPaymentStatus.mockResolvedValue("pending");
+    checkPaymentStatus.mockResolvedValue({ status: "pending", unknown: false });
     saveResult();
     await renderPayment();
 
@@ -314,18 +314,99 @@ describe("PaymentPage polling", () => {
 
     await advance(15000);
     expect(checkPaymentStatus).toHaveBeenCalledTimes(3);
-    expect(screen.getByText("We could not check the payment")).toBeTruthy();
+    expect(
+      screen.getByText("We could not check the payment right now"),
+    ).toBeTruthy();
 
     const button = screen.getByRole("button", { name: "Check again" });
     expect(button.disabled).toBe(false);
 
-    checkPaymentStatus.mockResolvedValueOnce("paid");
+    checkPaymentStatus.mockResolvedValueOnce({ status: "paid", unknown: false });
     await act(async () => {
       fireEvent.click(button);
     });
     await act(async () => {});
 
     expect(checkPaymentStatus).toHaveBeenCalledTimes(4);
+    expect(screen.getByText("Payment confirmed")).toBeTruthy();
+  });
+
+  it("treats gateway errors as failed checks and stops after 3", async () => {
+    checkPaymentStatus.mockResolvedValue({ status: "error", unknown: false });
+    saveResult();
+    await renderPayment();
+
+    await advance(15000);
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(3);
+    expect(
+      screen.getByText("We could not check the payment right now"),
+    ).toBeTruthy();
+
+    const button = screen.getByRole("button", { name: "Check again" });
+    expect(button.disabled).toBe(false);
+
+    await advance(30000);
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(3);
+
+    checkPaymentStatus.mockResolvedValueOnce({ status: "paid", unknown: false });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    await act(async () => {});
+
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(4);
+    expect(screen.getByText("Payment confirmed")).toBeTruthy();
+    expect(screen.queryByText("We could not check the payment right now")).toBeNull();
+  });
+
+  it("never renders the gateway message, code, request id, or raw text", async () => {
+    checkPaymentStatus.mockResolvedValue({ status: "error", unknown: false });
+    saveResult();
+    await renderPayment();
+
+    await advance(15000);
+    expect(
+      screen.getByText("We could not check the payment right now"),
+    ).toBeTruthy();
+    expect(screen.queryByText("Application not found")).toBeNull();
+    expect(screen.queryByText("Payment status retrieved successfully.")).toBeNull();
+    expect(screen.queryByText("404")).toBeNull();
+    expect(screen.queryByText("req-123")).toBeNull();
+  });
+
+  it("stops polling after 10 unknown responses", async () => {
+    checkPaymentStatus.mockResolvedValue({ status: "pending", unknown: true });
+    saveResult();
+    await renderPayment();
+
+    await advance(50000);
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(10);
+    expect(
+      screen.getByText("We could not check the payment right now"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Check again" }).disabled,
+    ).toBe(false);
+
+    await advance(30000);
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(10);
+  });
+
+  it("resumes polling from the manual check after unknown responses", async () => {
+    checkPaymentStatus.mockResolvedValue({ status: "pending", unknown: true });
+    saveResult();
+    await renderPayment();
+
+    await advance(50000);
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(10);
+
+    checkPaymentStatus.mockResolvedValueOnce({ status: "paid", unknown: false });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    });
+    await act(async () => {});
+
+    expect(checkPaymentStatus).toHaveBeenCalledTimes(11);
     expect(screen.getByText("Payment confirmed")).toBeTruthy();
   });
 });
