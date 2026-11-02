@@ -104,6 +104,9 @@ function StatusBadge({ status }) {
 }
 
 function NotAvailable({ bookingId }) {
+  // TODO(no-endpoint): the backend has no endpoint to fetch the QR/payment
+  // session for an existing booking, so this page can only show details that
+  // were stored in the browser when the booking was created.
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
@@ -395,12 +398,13 @@ export default function PaymentPage() {
                 <p className="mt-2 text-sm text-emerald-800">
                   Your payment was received and your booking is confirmed.
                 </p>
-                {/* TODO(my-bookings): link to the My Bookings page when it exists. */}
+                {/* TODO(no-endpoint): the backend has no endpoint to refresh
+                    the payment/QR details of an existing booking. */}
                 <Link
-                  to="/"
+                  to="/my-bookings"
                   className="mt-4 inline-block rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
                 >
-                  Back to home
+                  View my bookings
                 </Link>
               </div>
             )}

@@ -41,6 +41,8 @@ import ContactPage from "../pages/public/ContactPage";
 import TourListPage from "../pages/admin/tours/TourListPage";
 import DashboardEntry from "../components/layout/DashboardEntry";
 import BookingPage from "../pages/customer/BookingPage";
+import MyBookingsPage from "../pages/customer/MyBookingsPage";
+import MyBookingDetailPage from "../pages/customer/MyBookingDetailPage";
 import PaymentPage from "../pages/payment/PaymentPage";
 import { PERMISSIONS } from "../constants/permissions";
 
@@ -89,6 +91,15 @@ export default function AppRoutes() {
           </Route>
 
           <Route path="/payment/:bookingId" element={<PaymentPage />} />
+
+          <Route
+            element={
+              <RequirePermission permission={PERMISSIONS.VIEW_BOOKINGS} />
+            }
+          >
+            <Route path="/my-bookings" element={<MyBookingsPage />} />
+            <Route path="/my-bookings/:id" element={<MyBookingDetailPage />} />
+          </Route>
 
           <Route element={<RequirePermission {...ROUTE_ACCESS["/dashboard"]} />}>
             <Route element={<Sidebar />}>
