@@ -110,7 +110,6 @@ describe("Sidebar menu visibility", () => {
     expect(visibleItems()).toEqual([
       "Destinations",
       "Guides",
-      "Tours",
       "Bookings",
       "Settings",
     ]);

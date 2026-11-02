@@ -15,6 +15,8 @@ export default function Toast({
   tone = "success",
   onClose,
   duration = 4000,
+  actionLabel,
+  onAction,
 }) {
   useEffect(() => {
     if (!message || !duration) {
@@ -43,6 +45,15 @@ export default function Toast({
         className={`pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg ${toneClass}`}
       >
         <span className="flex-1">{message}</span>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="shrink-0 rounded-md border border-current px-2 py-0.5 text-xs font-semibold opacity-80 transition hover:opacity-100"
+          >
+            {actionLabel}
+          </button>
+        )}
         {onClose && (
           <button
             type="button"

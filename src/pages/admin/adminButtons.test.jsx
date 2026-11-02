@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../context/AuthContext";
 import Customers from "../../components/admin/customers/Customers";
 import BookingList from "./bookings/BookingList";
@@ -8,6 +9,34 @@ import DestinationsList from "./destinations/DestinationsList";
 import GuidesList from "./guides/GuidesList";
 import TourListPage from "./tours/TourListPage";
 import PageListUser from "./users/PageListUser";
+
+vi.mock("../../services/adminTourService", () => ({
+  listAdminTours: vi.fn().mockResolvedValue({
+    tours: [
+      {
+        id: 4,
+        title: "Kyoto Discovery",
+        slug: "kyoto-discovery",
+        status: "published",
+        basePrice: 1200,
+        priceOverride: null,
+        durationDays: 3,
+        durationNights: 2,
+        primaryImage: "",
+      },
+    ],
+    meta: null,
+    links: null,
+  }),
+  deleteTour: vi.fn().mockResolvedValue({}),
+  restoreTour: vi.fn().mockResolvedValue({}),
+  createTour: vi.fn().mockResolvedValue({}),
+  updateTour: vi.fn().mockResolvedValue({}),
+  getAdminTour: vi.fn().mockResolvedValue(null),
+  buildTourPayload: vi.fn(() => ({})),
+  toTourForm: vi.fn(() => ({})),
+  TOUR_STATUS_CASING: "lower",
+}));
 
 const SESSION_KEY = "traveladmin.session";
 
@@ -35,7 +64,11 @@ function renderAs(role, element) {
     JSON.stringify({ token: "test-token", user: USERS[role] }),
   );
 
-  return render(<AuthProvider>{element}</AuthProvider>);
+  return render(
+    <MemoryRouter>
+      <AuthProvider>{element}</AuthProvider>
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -48,28 +81,29 @@ afterEach(() => {
 });
 
 describe("admin action buttons", () => {
-  it("shows add and delete to an admin on the tours list", () => {
+  it("shows add and delete to an admin on the tours list", async () => {
     renderAs("admin", <TourListPage />);
 
-    expect(screen.getByText("Add Tour")).toBeDefined();
-    expect(screen.getAllByTitle("Delete").length).toBeGreaterThan(0);
-    expect(screen.getAllByTitle("Edit").length).toBeGreaterThan(0);
+    expect(screen.getByText("Add tour")).toBeDefined();
+    expect(await screen.findByRole("link", { name: "Edit" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDefined();
   });
 
-  it("hides delete from a tour manager but keeps add and edit", () => {
+  it("hides delete from a tour manager but keeps add and edit", async () => {
     renderAs("tour_manager", <TourListPage />);
 
-    expect(screen.getByText("Add Tour")).toBeDefined();
-    expect(screen.getAllByTitle("Edit").length).toBeGreaterThan(0);
-    expect(screen.queryAllByTitle("Delete")).toHaveLength(0);
+    expect(screen.getByText("Add tour")).toBeDefined();
+    expect(await screen.findByRole("link", { name: "Edit" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
   });
 
-  it("hides add, edit and delete from a tour guide on the tours list", () => {
+  it("shows a read-only view to a tour guide on the tours list", async () => {
     renderAs("tour_guide", <TourListPage />);
 
-    expect(screen.queryByText("Add Tour")).toBeNull();
-    expect(screen.queryAllByTitle("Edit")).toHaveLength(0);
-    expect(screen.queryAllByTitle("Delete")).toHaveLength(0);
+    expect(screen.queryByText("Add tour")).toBeNull();
+    expect(await screen.findByRole("link", { name: "View" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
   });
 
   it("gates Add Destination by store_locations", () => {

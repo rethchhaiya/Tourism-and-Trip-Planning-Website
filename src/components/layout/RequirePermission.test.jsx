@@ -35,7 +35,7 @@ const ROUTE_MATRIX = [
   ["/listbooking", ["admin", "tour_manager", "tour_guide", "customer"]],
   ["/table_destinations", ["admin", "tour_manager", "tour_guide", "customer"]],
   ["/guides", ["admin", "customer"]],
-  ["/admin/tours", ["admin", "tour_manager", "tour_guide", "customer"]],
+  ["/admin/tours", ["admin", "tour_manager", "tour_guide"]],
   ["/customers", ["admin"]],
   ["/customer", ["admin"]],
   ["/createcustomer", ["admin"]],

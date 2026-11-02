@@ -1,159 +1,344 @@
-import React, { useState } from "react";
-import TourHeader from "../../../components/admin/tours/TourHeader";
-import TourTable from "../../../components/admin/tours/TourTable";
-import Pagination from "../../../components/admin/tours/Pagination";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import Toast from "../../../components/common/Toast";
 import TourFilter from "../../../components/admin/tours/TourFilter";
+import TourHeader from "../../../components/admin/tours/TourHeader";
+import Pagination from "../../../components/admin/tours/Pagination";
+import TourTable from "../../../components/admin/tours/TourTable";
+import { useAuth } from "../../../context/useAuth";
+import {
+  deleteTour,
+  listAdminTours,
+  restoreTour,
+} from "../../../services/adminTourService";
+import { resolveApiErrorMessage } from "../../../utils/apiError";
 
-const tours = [
-  {
-    id: "T-1001",
-    name: "Santorini Escape",
-    slug: "santorini-escape",
-    category: "Beach",
-    destination: "Santorini, Greece",
-    duration: "5 Days / 4 Nights",
-    price: 899,
-    status: "ACTIVE",
-    createdAt: "Oct 12, 2023",
-    image:
-      "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=500&q=80",
-  },
+const DELETE_FALLBACK = "Could not delete this tour. Please try again.";
+const RESTORE_FALLBACK = "Could not restore this tour. Please try again.";
+const EMPTY_TOURS = [];
 
-  {
-    id: "T-1002",
-    name: "Kyoto Discovery",
-    slug: "kyoto-discovery",
-    category: "Cultural",
-    destination: "Kyoto, Japan",
-    duration: "6 Days / 5 Nights",
-    price: 1299,
-    status: "ACTIVE",
-    createdAt: "Oct 14, 2023",
-    image:
-      "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80",
-  },
+function readPage(searchParams) {
+  const parsed = Number.parseInt(searchParams.get("page") ?? "1", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
 
-  {
-    id: "T-1003",
-    name: "Swiss Alps Adventure",
-    slug: "swiss-alps-adventure",
-    category: "Adventure",
-    destination: "Zermatt, Switzerland",
-    duration: "7 Days / 6 Nights",
-    price: 1499,
-    status: "INACTIVE",
-    createdAt: "Nov 02, 2023",
-    image:
-      "https://images.unsplash.com/photo-1530789253388-582c481c54b0?auto=format&fit=crop&w=500&q=80",
-  },
+function isValidTourId(value) {
+  return /^\d+$/.test(String(value ?? "").trim()) && Number(value) > 0;
+}
 
-  {
-    id: "T-1004",
-    name: "Bali Paradise",
-    slug: "bali-paradise",
-    category: "Beach",
-    destination: "Bali, Indonesia",
-    duration: "4 Days / 3 Nights",
-    price: 699,
-    status: "ACTIVE",
-    createdAt: "Nov 10, 2023",
-    image:
-      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=500&q=80",
-  },
+export default function TourListPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAdmin } = useAuth();
+  const page = readPage(searchParams);
 
-  {
-    id: "T-1005",
-    name: "Paris Getaway",
-    slug: "paris-getaway",
-    category: "City",
-    destination: "Paris, France",
-    duration: "3 Days / 2 Nights",
-    price: 599,
-    status: "DRAFT",
-    createdAt: "Nov 15, 2023",
-    image:
-      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=500&q=80",
-  },
-];
-
-const TourListPage = () => {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("ALL");
-  const [status, setStatus] = useState("ALL");
-  const filteredTours = tours.filter((tour) => {
-    const searchText = search.toLowerCase();
-
-    const matchesSearch =
-      tour.name.toLowerCase().includes(searchText) ||
-      tour.slug.toLowerCase().includes(searchText) ||
-      tour.destination.toLowerCase().includes(searchText) ||
-      tour.id.toLowerCase().includes(searchText);
-
-    const matchesCategory = category === "ALL" || tour.category === category;
-
-    const matchesStatus = status === "ALL" || tour.status === status;
-
-    return matchesSearch && matchesCategory && matchesStatus;
+  const [status, setStatus] = useState("");
+  const [result, setResult] = useState({
+    key: null,
+    status: "loading",
+    tours: [],
+    meta: null,
   });
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const handleAdd = () => {
-    alert("Add Tour");
-  };
+  const requestKey = `${page}\u0000${reloadKey}`;
+  const tours = result.key === requestKey ? result.tours : EMPTY_TOURS;
+  const meta = result.key === requestKey ? result.meta : null;
+  const loadState = result.key === requestKey ? result.status : "loading";
 
-  const handleView = (tour) => {
-    alert(`View: ${tour.name}`);
-  };
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [undoing, setUndoing] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const handleEdit = (tour) => {
-    alert(`Edit: ${tour.name}`);
-  };
+  const [restoreId, setRestoreId] = useState("");
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState("");
 
-  const handleDelete = (tour) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${tour.name}?`,
-    );
+  const closeToast = useCallback(() => setToast(null), []);
 
-    if (confirmDelete) {
-      alert(`${tour.name} deleted`);
+  useEffect(() => {
+    let cancelled = false;
+    const key = `${page}\u0000${reloadKey}`;
+
+    listAdminTours({ page })
+      .then((next) => {
+        if (!cancelled) {
+          setResult({
+            key,
+            status: "ready",
+            tours: next.tours,
+            meta: next.meta,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResult({ key, status: "error", tours: [], meta: null });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page, reloadKey]);
+
+  const filteredTours = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const normalizedStatus = status.toLowerCase();
+
+    return tours.filter((tour) => {
+      const matchesSearch =
+        !term || String(tour.title ?? "").toLowerCase().includes(term);
+      const matchesStatus =
+        !normalizedStatus ||
+        String(tour.status ?? "").trim().toLowerCase() === normalizedStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [tours, search, status]);
+
+  const currentPage = Number(meta?.current_page ?? page) || 1;
+  const lastPage = Math.max(Number(meta?.last_page ?? 1) || 1, 1);
+  const total = Number(meta?.total ?? tours.length) || 0;
+  const perPage = Number(meta?.per_page ?? tours.length) || 0;
+
+  function refresh() {
+    setReloadKey((key) => key + 1);
+  }
+
+  function goToPage(nextPage) {
+    const target = Math.min(Math.max(nextPage, 1), lastPage);
+    const next = new URLSearchParams(searchParams);
+    if (target <= 1) {
+      next.delete("page");
+    } else {
+      next.set("page", String(target));
     }
-  };
+    setSearchParams(next);
+  }
+
+  function openDelete(tour) {
+    setDeleteError("");
+    setDeleteTarget(tour);
+  }
+
+  function closeDelete() {
+    if (deleting) {
+      return;
+    }
+    setDeleteTarget(null);
+    setDeleteError("");
+  }
+
+  async function confirmDelete() {
+    if (deleting || !deleteTarget) {
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteTour(deleteTarget.id);
+      setDeleteTarget(null);
+      refresh();
+      setToast({
+        message: "Tour deleted. It is hidden from the website.",
+        tone: "success",
+        undoId: deleteTarget.id,
+      });
+    } catch (error) {
+      setDeleteError(resolveApiErrorMessage(error, DELETE_FALLBACK));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleUndo() {
+    if (undoing || !toast?.undoId) {
+      return;
+    }
+
+    const id = toast.undoId;
+    setUndoing(true);
+    try {
+      await restoreTour(id);
+      refresh();
+      setToast({ message: "Tour restored.", tone: "success" });
+    } catch (error) {
+      setToast({
+        message: resolveApiErrorMessage(error, RESTORE_FALLBACK),
+        tone: "error",
+      });
+    } finally {
+      setUndoing(false);
+    }
+  }
+
+  async function handleRestoreById(event) {
+    event.preventDefault();
+    if (restoring) {
+      return;
+    }
+
+    setRestoreError("");
+    if (!isValidTourId(restoreId)) {
+      setRestoreError("Enter a valid tour ID.");
+      return;
+    }
+
+    setRestoring(true);
+    try {
+      await restoreTour(Number(restoreId));
+      setRestoreId("");
+      refresh();
+      setToast({ message: "Tour restored.", tone: "success" });
+    } catch (error) {
+      setRestoreError(resolveApiErrorMessage(error, RESTORE_FALLBACK));
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100">
-      <main className="mx-auto w-full max-w-[1600px] p-6 lg:p-8">
-        {/* HEADER */}
+    <main className="min-h-screen bg-slate-100 p-4 md:p-8">
+      <div className="mx-auto max-w-[1500px]">
+        <TourHeader onAdd={() => navigate("/admin/tours/new")} />
 
-        <TourHeader onAdd={handleAdd} />
-
-        {/* MAIN CARD */}
-
-        <div className="mt-7 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {/* FILTER */}
-
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <TourFilter
             search={search}
             setSearch={setSearch}
-            category={category}
-            setCategory={setCategory}
             status={status}
             setStatus={setStatus}
           />
 
-          {/* TABLE */}
-
+          {/* TODO(no-endpoint): deleted tours cannot be listed because there is
+              no endpoint for deleted tours. Use restore-by-ID below instead. */}
           <TourTable
             tours={filteredTours}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            loadState={loadState}
+            onDelete={openDelete}
+            onRetry={refresh}
           />
 
-          {/* PAGINATION */}
+          <Pagination
+            currentPage={currentPage}
+            lastPage={lastPage}
+            total={total}
+            perPage={perPage}
+            onPageChange={goToPage}
+            disabled={loadState === "loading"}
+          />
+        </section>
 
-          <Pagination />
+        {isAdmin && (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-bold text-slate-900">
+              Restore a deleted tour by ID
+            </h2>
+            {/* TODO(no-endpoint): no endpoint lists deleted tours, so the admin
+                must know the tour ID. */}
+            <p className="mt-1 text-xs text-slate-400">
+              There is no list of deleted tours yet. Enter the tour ID to
+              restore it.
+            </p>
+
+            <form
+              className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+              onSubmit={handleRestoreById}
+              noValidate
+            >
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={restoreId}
+                onChange={(event) => setRestoreId(event.target.value)}
+                aria-label="Tour ID to restore"
+                placeholder="Tour ID"
+                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-50 sm:max-w-[180px]"
+              />
+              <button
+                type="submit"
+                disabled={restoring}
+                className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {restoring ? "Restoring..." : "Restore"}
+              </button>
+            </form>
+
+            {restoreError && (
+              <p
+                role="alert"
+                className="mt-2 text-xs font-medium text-red-600"
+              >
+                {restoreError}
+              </p>
+            )}
+          </section>
+        )}
+      </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-tour-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <h2
+              id="delete-tour-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              Delete tour?
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              &ldquo;{deleteTarget.title || "This tour"}&rdquo; will be hidden
+              from the website. You can restore it.
+            </p>
+
+            {deleteError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+              >
+                {deleteError}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDelete}
+                disabled={deleting}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
-  );
-};
+      )}
 
-export default TourListPage;
+      <Toast
+        message={toast?.message ?? ""}
+        tone={toast?.tone ?? "success"}
+        duration={toast?.undoId ? 10000 : 4000}
+        actionLabel={toast?.undoId ? "Undo" : undefined}
+        onAction={toast?.undoId ? handleUndo : undefined}
+        onClose={closeToast}
+      />
+    </main>
+  );
+}

@@ -1,66 +1,66 @@
-import React from "react";
 import TourRow from "./TourRow";
 
-const TourTable = ({ tours, onView, onEdit, onDelete }) => {
+const COLUMN_COUNT = 6;
+
+export default function TourTable({ tours, loadState, onDelete, onRetry }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1250px] border-collapse">
-        <thead>
-          <tr className="border-b border-slate-200 bg-slate-50">
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              ID
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Tour
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Category
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Destination
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Duration
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Price
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Status
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Created At
-            </th>
-            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Actions
-            </th>
+      <table className="w-full min-w-[900px] text-left">
+        <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <tr>
+            <th className="px-5 py-3">Image</th>
+            <th className="px-5 py-3">Title</th>
+            <th className="px-5 py-3">Status</th>
+            <th className="px-5 py-3">Duration</th>
+            <th className="px-5 py-3">Price</th>
+            <th className="px-5 py-3 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          {tours.length > 0 ? (
-            tours.map((tour) => (
-              <TourRow
-                key={tour.id}
-                tour={tour}
-                onView={onView}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))
-          ) : (
+
+        <tbody className="divide-y divide-slate-100">
+          {loadState === "loading" &&
+            Array.from({ length: 5 }).map((_, index) => (
+              <tr key={`skeleton-${index}`}>
+                <td colSpan={COLUMN_COUNT} className="px-5 py-4">
+                  <div className="h-14 animate-pulse rounded-lg bg-slate-100" />
+                </td>
+              </tr>
+            ))}
+
+          {loadState === "error" && (
+            <tr>
+              <td colSpan={COLUMN_COUNT} className="px-5 py-12 text-center">
+                <p role="alert" className="text-sm text-red-600">
+                  Could not load tours.
+                </p>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-3 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Try again
+                </button>
+              </td>
+            </tr>
+          )}
+
+          {loadState === "ready" && tours.length === 0 && (
             <tr>
               <td
-                colSpan="9"
-                className="px-5 py-16 text-center text-sm text-slate-500"
+                colSpan={COLUMN_COUNT}
+                className="px-5 py-12 text-center text-sm text-slate-500"
               >
                 No tours found.
               </td>
             </tr>
           )}
+
+          {loadState === "ready" &&
+            tours.map((tour) => (
+              <TourRow key={tour.id} tour={tour} onDelete={onDelete} />
+            ))}
         </tbody>
       </table>
     </div>
   );
-};
-
-export default TourTable;
+}

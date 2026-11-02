@@ -39,6 +39,7 @@ import CategoriesPage from "../pages/public/CategoriesPage";
 import AboutPage from "../pages/public/AboutPage";
 import ContactPage from "../pages/public/ContactPage";
 import TourListPage from "../pages/admin/tours/TourListPage";
+import TourFormPage from "../pages/admin/tours/TourFormPage";
 import CategoriesAdminPage from "../pages/admin/categories/CategoriesAdminPage";
 import DashboardEntry from "../components/layout/DashboardEntry";
 import BookingPage from "../pages/customer/BookingPage";
@@ -160,6 +161,21 @@ export default function AppRoutes() {
           <Route element={<RequirePermission {...ROUTE_ACCESS["/admin/tours"]} />}>
             <Route element={<Sidebar />}>
               <Route path="/admin/tours" element={<TourListPage />} />
+              <Route
+                path="/admin/tours/:id/edit"
+                element={<TourFormPage mode="edit" />}
+              />
+            </Route>
+          </Route>
+
+          <Route
+            element={<RequirePermission {...ROUTE_ACCESS["/admin/tours/new"]} />}
+          >
+            <Route element={<Sidebar />}>
+              <Route
+                path="/admin/tours/new"
+                element={<TourFormPage mode="create" />}
+              />
             </Route>
           </Route>
 

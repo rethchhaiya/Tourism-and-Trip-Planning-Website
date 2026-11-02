@@ -31,7 +31,14 @@ export const ROUTE_ACCESS = {
   },
   "/destination": { staff: true, permission: PERMISSIONS.STORE_LOCATIONS },
   "/guides": { permission: PERMISSIONS.VIEW_GUIDES },
-  "/admin/tours": { permission: PERMISSIONS.VIEW_TOURS },
+  "/admin/tours": {
+    staff: true,
+    permission: PERMISSIONS.VIEW_TOURS,
+  },
+  "/admin/tours/new": {
+    staff: true,
+    permission: PERMISSIONS.STORE_TOURS,
+  },
   "/customers": { adminOnly: true },
   "/customer": { adminOnly: true },
   "/createcustomer": { adminOnly: true },

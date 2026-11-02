@@ -1,112 +1,97 @@
-import React from "react";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Eye, ImageOff, Pencil, Trash2 } from "lucide-react";
 import { useAuth } from "../../../context/useAuth";
 import { PERMISSIONS } from "../../../constants/permissions";
+import { formatCurrency } from "../../../utils/currency";
+import { formatDuration } from "../../../utils/catalog";
+import TourStatusBadge from "./TourStatusBadge";
 
-const categoryStyles = {
-  Beach: "bg-indigo-50 text-indigo-600",
-  Cultural: "bg-amber-50 text-amber-600",
-  Adventure: "bg-emerald-50 text-emerald-600",
-  City: "bg-blue-50 text-blue-600",
-};
+function TourImage({ src, alt }) {
+  const [failed, setFailed] = useState(false);
 
-const statusStyles = {
-  ACTIVE: "bg-emerald-50 text-emerald-600",
-  INACTIVE: "bg-red-50 text-red-600",
-  DRAFT: "bg-slate-100 text-slate-600",
-};
-
-const TourRow = ({ tour, onView, onEdit, onDelete }) => {
-  const { can, isAdmin } = useAuth();
+  if (!src || failed) {
+    return (
+      <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+        <ImageOff size={18} />
+      </div>
+    );
+  }
 
   return (
-    <tr className="border-b border-slate-100 transition hover:bg-slate-50">
-      {/* ID */}
-      <td className="px-5 py-5 text-sm font-medium text-slate-700">
-        {tour.id}
-      </td>
-      {/* Tour */}
-      <td className="px-5 py-5">
-        <div className="flex items-center gap-4">
-          <img
-            src={tour.image}
-            alt={tour.name}
-            className="h-20 w-28 rounded-lg object-cover"
-          />
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">
-              {tour.name}
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">{tour.slug}</p>
-          </div>
-        </div>
-      </td>
-      {/* Category */}
-      <td className="px-5 py-5">
-        <span
-          className={`inline-flex rounded-md px-3 py-1 text-xs font-medium ${categoryStyles[tour.category]}`}
-        >
-          {tour.category}
-        </span>
-      </td>
-      {/* Destination */}
-      <td className="px-5 py-5 text-sm text-slate-600">{tour.destination}</td>
-      {/* Duration */}
-      <td className="whitespace-nowrap px-5 py-5 text-sm text-slate-600">
-        {tour.duration}
-      </td>
-      {/* Price */}
-      <td className="px-5 py-5 text-sm font-semibold text-indigo-600">
-        ${tour.price.toLocaleString()}
-      </td>
-      {/* Status */}
-      <td className="px-5 py-5">
-        <span
-          className={`inline-flex rounded-md px-3 py-1 text-xs font-medium ${
-            statusStyles[tour.status]
-          }`}
-        >
-          {tour.status}
-        </span>
-      </td>
-      {/* Created */}
-      <td className="whitespace-nowrap px-5 py-5 text-sm text-slate-600">
-        {tour.createdAt}
-      </td>
-      {/* Actions */}
-      <td className="px-5 py-5">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onView(tour)}
-            className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
-            title="View"
-          >
-            <Eye size={17} />
-          </button>
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className="h-14 w-20 shrink-0 rounded-lg border border-slate-200 object-cover"
+    />
+  );
+}
 
-          {can(PERMISSIONS.UPDATE_TOURS) && (
-            <button
-              onClick={() => onEdit(tour)}
-              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
-              title="Edit"
-            >
-              <Pencil size={17} />
-            </button>
-          )}
+export default function TourRow({ tour, onDelete }) {
+  const { can, isAdmin } = useAuth();
+  const canEdit = can(PERMISSIONS.UPDATE_TOURS);
+  const price = tour.priceOverride ?? tour.basePrice;
+  const duration = formatDuration(tour);
+
+  return (
+    <tr className="text-sm text-slate-700 transition hover:bg-slate-50/70">
+      <td className="px-5 py-3">
+        <TourImage
+          key={tour.primaryImage}
+          src={tour.primaryImage}
+          alt={tour.title || "Tour"}
+        />
+      </td>
+
+      <td className="px-5 py-3">
+        <p className="font-semibold text-slate-900">
+          {tour.title || "Untitled tour"}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-400">{tour.slug || "—"}</p>
+      </td>
+
+      <td className="px-5 py-3">
+        <TourStatusBadge status={tour.status} />
+      </td>
+
+      <td className="whitespace-nowrap px-5 py-3 text-slate-600">
+        {duration || "—"}
+      </td>
+
+      <td className="whitespace-nowrap px-5 py-3">
+        <p className="font-semibold text-slate-900">
+          {formatCurrency(price) || "—"}
+        </p>
+        {tour.priceOverride != null && tour.basePrice != null && (
+          <p className="text-xs text-slate-400 line-through">
+            {formatCurrency(tour.basePrice)}
+          </p>
+        )}
+      </td>
+
+      <td className="px-5 py-3">
+        <div className="flex items-center justify-end gap-2">
+          <Link
+            to={`/admin/tours/${tour.id}/edit`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+          >
+            {canEdit ? <Pencil size={13} /> : <Eye size={13} />}
+            {canEdit ? "Edit" : "View"}
+          </Link>
 
           {isAdmin && (
             <button
+              type="button"
               onClick={() => onDelete(tour)}
-              className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-              title="Delete"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
             >
-              <Trash2 size={17} />
+              <Trash2 size={13} />
+              Delete
             </button>
           )}
         </div>
       </td>
     </tr>
   );
-};
-
-export default TourRow;
+}

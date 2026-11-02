@@ -13,6 +13,22 @@ vi.mock("../services/adminCategoryService", () => ({
   deleteCategory: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock("../services/adminTourService", () => ({
+  listAdminTours: vi.fn().mockResolvedValue({
+    tours: [],
+    meta: null,
+    links: null,
+  }),
+  getAdminTour: vi.fn().mockResolvedValue(null),
+  createTour: vi.fn().mockResolvedValue({}),
+  updateTour: vi.fn().mockResolvedValue({}),
+  deleteTour: vi.fn().mockResolvedValue({}),
+  restoreTour: vi.fn().mockResolvedValue({}),
+  buildTourPayload: vi.fn(() => ({})),
+  toTourForm: vi.fn(() => ({})),
+  TOUR_STATUS_CASING: "lower",
+}));
+
 const SESSION_KEY = "traveladmin.session";
 
 const USERS = {
@@ -41,7 +57,9 @@ const ROUTE_MATRIX = [
   ["/listbooking", ["admin", "tour_manager", "tour_guide", "customer"]],
   ["/table_destinations", ["admin", "tour_manager", "tour_guide", "customer"]],
   ["/guides", ["admin", "customer"]],
-  ["/admin/tours", ["admin", "tour_manager", "tour_guide", "customer"]],
+  ["/admin/tours", ["admin", "tour_manager", "tour_guide"]],
+  ["/admin/tours/new", ["admin", "tour_manager"]],
+  ["/admin/tours/5/edit", ["admin", "tour_manager", "tour_guide"]],
   ["/admin/categories", ["admin", "tour_manager"]],
   ["/customers", ["admin"]],
   ["/customer", ["admin"]],
@@ -99,6 +117,13 @@ describe("AppRoutes permission wiring", () => {
 
   it("redirects a guest to login", async () => {
     renderApp("/dashboard");
+
+    expect(await screen.findByText("Admin Login")).toBeDefined();
+    expect(screen.queryByText("Access denied")).toBeNull();
+  });
+
+  it("redirects a guest away from the admin tours screen", async () => {
+    renderApp("/admin/tours");
 
     expect(await screen.findByText("Admin Login")).toBeDefined();
     expect(screen.queryByText("Access denied")).toBeNull();
