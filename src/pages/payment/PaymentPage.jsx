@@ -2,11 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import { PERMISSIONS } from "../../constants/permissions";
 import { useAuth } from "../../context/useAuth";
+import { cancelBooking } from "../../services/bookingService";
 import {
   checkPaymentStatus,
   mapPaymentStatus,
 } from "../../services/paymentService";
+import { can } from "../../services/roleAdapter";
+import {
+  CANCEL_CONFIRM_MESSAGE,
+  isCancellableStatus,
+  resolveCancelErrorMessage,
+} from "../../utils/bookingDisplay";
 import {
   clearBookingResult,
   getBookingResult,
@@ -141,6 +149,20 @@ export default function PaymentPage() {
   const gatewayResponse = gateway?.response ?? null;
   const tranId = gateway?.tran_id != null ? String(gateway.tran_id) : "";
 
+  const qrImage = gatewayResponse?.qrImage;
+  const hasSafeQr =
+    typeof qrImage === "string" && qrImage.startsWith(QR_IMAGE_PREFIX);
+  const gatewayReportedError =
+    (typeof gatewayResponse?.status === "string" &&
+      gatewayResponse.status.trim().toLowerCase() === "error") ||
+    (typeof gatewayResponse?.code === "number" &&
+      Number.isFinite(gatewayResponse.code) &&
+      gatewayResponse.code >= 400);
+  // No usable QR plus either a gateway error or no gateway at all means the
+  // booking has no online payment session to check.
+  const noOnlinePayment =
+    !hasSafeQr && (gatewayReportedError || !gateway);
+
   const storedUserId = booking?.user?.id;
   const currentUserId = user?.id;
   const ownsBooking =
@@ -155,10 +177,45 @@ export default function PaymentPage() {
   const [isChecking, setIsChecking] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [stopped, setStopped] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState(
+    () => booking?.status ?? null,
+  );
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [cancelNotice, setCancelNotice] = useState("");
   const manualCheckRef = useRef(() => {});
+  const warnedRef = useRef(false);
+
+  const canCancel =
+    can(user, PERMISSIONS.CANCEL_BOOKINGS) &&
+    isCancellableStatus(bookingStatus);
 
   const canPoll =
-    available && status === "pending" && !timedOut && Boolean(tranId);
+    available &&
+    !noOnlinePayment &&
+    status === "pending" &&
+    !timedOut &&
+    Boolean(tranId);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !noOnlinePayment || warnedRef.current) {
+      return;
+    }
+    warnedRef.current = true;
+
+    const gatewayKeys =
+      gateway && typeof gateway === "object" ? Object.keys(gateway) : [];
+    const responseKeys =
+      gatewayResponse && typeof gatewayResponse === "object"
+        ? Object.keys(gatewayResponse)
+        : [];
+    // Key names only: never log message text, ids, or values.
+    console.warn(
+      `[paymentPage] No online payment session. Gateway keys: ${
+        gatewayKeys.join(", ") || "(none)"
+      }. Response keys: ${responseKeys.join(", ") || "(none)"}`,
+    );
+  }, [gateway, gatewayResponse, noOnlinePayment]);
 
   useEffect(() => {
     if (!canPoll) {
@@ -311,6 +368,30 @@ export default function PaymentPage() {
     manualCheckRef.current();
   }, []);
 
+  async function handleCancelBooking() {
+    if (!booking || !isCancellableStatus(bookingStatus)) {
+      return;
+    }
+
+    if (!window.confirm(CANCEL_CONFIRM_MESSAGE)) {
+      return;
+    }
+
+    setCancelError("");
+    setCancelNotice("");
+    setIsCancelling(true);
+
+    try {
+      const updated = await cancelBooking(booking.id ?? bookingId);
+      setBookingStatus(updated.status || "cancelled");
+      setCancelNotice("This booking has been cancelled.");
+    } catch (error) {
+      setCancelError(resolveCancelErrorMessage(error));
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
   if (!available) {
     return (
       <>
@@ -326,9 +407,6 @@ export default function PaymentPage() {
   const amount = payment?.amount ?? booking.total_price;
   const formattedAmount = formatCurrency(amount);
   const response = gatewayResponse ?? {};
-  const qrImage = response.qrImage;
-  const hasSafeQr =
-    typeof qrImage === "string" && qrImage.startsWith(QR_IMAGE_PREFIX);
   const deeplink = response.abapay_deeplink;
   const safeDeeplink =
     typeof deeplink === "string" &&
@@ -347,7 +425,8 @@ export default function PaymentPage() {
       : null;
   const mobileDevice = isMobileDevice();
   const tourLink = getTourLink(booking);
-  const showPendingWithoutQr = status === "pending" && !hasSafeQr;
+  const showPendingWithoutQr =
+    status === "pending" && !hasSafeQr && !noOnlinePayment;
 
   return (
     <>
@@ -392,21 +471,93 @@ export default function PaymentPage() {
               </div>
             </dl>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleCheckAgain}
-                disabled={
-                  isChecking || status !== "pending" || timedOut || !tranId
-                }
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Check again
-              </button>
-              {isChecking && (
-                <span className="text-sm text-slate-500">Checking payment...</span>
-              )}
-            </div>
+            {noOnlinePayment && (
+              <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-6">
+                <h2 className="text-lg font-bold text-amber-900">
+                  Payment unavailable
+                </h2>
+                <p className="mt-2 text-sm font-medium text-amber-900">
+                  Online payment is not available right now. Your booking has
+                  been saved as pending.
+                </p>
+                <dl className="mt-4 space-y-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="font-medium text-amber-800">Booking ID</dt>
+                    <dd className="font-semibold text-amber-900">
+                      #{booking.id ?? bookingId}
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="font-medium text-amber-800">Amount</dt>
+                    <dd className="font-semibold text-amber-900">
+                      {formattedAmount || "Amount unavailable"}
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="font-medium text-amber-800">
+                      Payment method
+                    </dt>
+                    <dd className="font-semibold text-amber-900">
+                      {paymentMethodLabel(payment?.payment_method)}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  {canCancel && (
+                    <button
+                      type="button"
+                      onClick={handleCancelBooking}
+                      disabled={isCancelling}
+                      className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isCancelling ? "Cancelling..." : "Cancel this booking"}
+                    </button>
+                  )}
+                  <Link
+                    to="/tours/catalog"
+                    className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                  >
+                    Browse tours
+                  </Link>
+                </div>
+                {cancelError && (
+                  <p
+                    role="alert"
+                    className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+                  >
+                    {cancelError}
+                  </p>
+                )}
+                {cancelNotice && (
+                  <p
+                    role="status"
+                    className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+                  >
+                    {cancelNotice}
+                  </p>
+                )}
+              </section>
+            )}
+
+            {!noOnlinePayment && (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleCheckAgain}
+                  disabled={
+                    isChecking || status !== "pending" || timedOut || !tranId
+                  }
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Check again
+                </button>
+                {isChecking && (
+                  <span className="text-sm text-slate-500">
+                    Checking payment...
+                  </span>
+                )}
+              </div>
+            )}
 
             {status === "pending" && stopped && (
               <p

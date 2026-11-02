@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./httpClient", () => ({
-  http: { post: vi.fn(), get: vi.fn(), patch: vi.fn() },
+  http: { post: vi.fn(), get: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }));
 
 import { http } from "./httpClient";
@@ -9,6 +9,7 @@ import {
   buildBookingPayload,
   cancelBooking,
   createBooking,
+  deleteBooking,
   getBooking,
   listBookings,
   normalizeBookingDetail,
@@ -19,6 +20,7 @@ beforeEach(() => {
   http.post.mockReset();
   http.get.mockReset();
   http.patch.mockReset();
+  http.delete.mockReset();
 });
 
 describe("buildBookingPayload", () => {
@@ -298,5 +300,14 @@ describe("cancelBooking", () => {
       status: "cancelled",
       schedule: null,
     });
+  });
+});
+
+describe("deleteBooking", () => {
+  it("deletes the booking and returns its id", async () => {
+    http.delete.mockResolvedValue(null);
+
+    await expect(deleteBooking("5/ok")).resolves.toEqual({ id: "5/ok" });
+    expect(http.delete).toHaveBeenCalledWith("/bookings/5%2Fok");
   });
 });

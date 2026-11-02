@@ -315,6 +315,11 @@ export async function cancelBooking(id) {
   };
 }
 
+export async function deleteBooking(id) {
+  await http.delete(`/bookings/${encodeURIComponent(String(id))}`);
+  return { id };
+}
+
 export function buildBookingPayload({
   tourScheduleId,
   type,

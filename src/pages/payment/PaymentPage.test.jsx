@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../../context/AuthContext";
+import { cancelBooking } from "../../services/bookingService";
 import { checkPaymentStatus } from "../../services/paymentService";
 import { saveBookingResult } from "../../utils/bookingStorage";
 import PaymentPage from "./PaymentPage";
@@ -10,6 +11,11 @@ import PaymentPage from "./PaymentPage";
 vi.mock("../../services/paymentService", async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, checkPaymentStatus: vi.fn() };
+});
+
+vi.mock("../../services/bookingService", async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, cancelBooking: vi.fn() };
 });
 
 vi.mock("../../components/Header", () => ({
@@ -57,6 +63,7 @@ function buildResult({
   appStore = "https://apps.apple.com/app/aba",
   playStore = "https://play.google.com/store/apps/details?id=aba",
   withGateway = true,
+  gatewayError = null,
 } = {}) {
   return {
     booking: {
@@ -75,22 +82,31 @@ function buildResult({
       transaction_id: "tx-1",
     },
     gateway: withGateway
-      ? {
-          tran_id: "tran-1",
-          status,
-          response: {
-            qrString: SECRET_QR,
-            qrImage,
-            abapay_deeplink: deeplink,
-            app_store: appStore,
-            play_store: playStore,
-            description: "Scan to pay",
-            status: {},
-          },
-        }
+      ? gatewayError
+        ? { remote_id: null, response: gatewayError }
+        : {
+            tran_id: "tran-1",
+            status,
+            response: {
+              qrString: SECRET_QR,
+              qrImage,
+              abapay_deeplink: deeplink,
+              app_store: appStore,
+              play_store: playStore,
+              description: "Scan to pay",
+              status: {},
+            },
+          }
       : null,
   };
 }
+
+const LIVE_GATEWAY_ERROR = {
+  status: "error",
+  code: 404,
+  message: "Application not found",
+  request_id: "req-123",
+};
 
 function saveResult(options) {
   const result = buildResult(options);
@@ -134,6 +150,8 @@ beforeEach(() => {
   sessionStorage.clear();
   checkPaymentStatus.mockReset();
   checkPaymentStatus.mockResolvedValue({ status: "pending", unknown: false });
+  cancelBooking.mockReset();
+  cancelBooking.mockResolvedValue({ id: 99, status: "cancelled" });
 });
 
 afterEach(() => {
@@ -227,12 +245,120 @@ describe("PaymentPage display", () => {
     ).toBe("https://play.google.com/store/apps/details?id=aba");
   });
 
-  it("shows pending payment with no QR block when the gateway is missing", async () => {
+  it("shows the no-online-payment block when the gateway is missing", async () => {
     saveResult({ withGateway: false });
     await renderPayment();
 
-    expect(screen.getByText("Your booking is pending payment")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Online payment is not available right now. Your booking has been saved as pending.",
+      ),
+    ).toBeTruthy();
     expect(screen.queryByAltText("Payment QR code")).toBeNull();
+    expect(screen.queryByText("Your booking is pending payment")).toBeNull();
+  });
+});
+
+describe("PaymentPage without online payment", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it("shows the block for the live gateway error shape and never polls", async () => {
+    saveResult({ gatewayError: LIVE_GATEWAY_ERROR });
+    await renderPayment();
+
+    expect(
+      screen.getByText(
+        "Online payment is not available right now. Your booking has been saved as pending.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getAllByText("#99").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$250.00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("ABA Pay").length).toBeGreaterThan(0);
+    expect(screen.queryByAltText("Payment QR code")).toBeNull();
+    expect(screen.queryByText("Your booking is pending payment")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Check again" })).toBeNull();
+
+    await advance(15000);
+    expect(checkPaymentStatus).not.toHaveBeenCalled();
+  });
+
+  it("never renders the gateway message, code, or request id", async () => {
+    saveResult({ gatewayError: LIVE_GATEWAY_ERROR });
+    await renderPayment();
+
+    expect(screen.queryByText("Application not found")).toBeNull();
+    expect(screen.queryByText("404")).toBeNull();
+    expect(screen.queryByText("req-123")).toBeNull();
+    expect(screen.queryByText(/Application not found/i)).toBeNull();
+  });
+
+  it("cancels the booking after confirmation", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    saveResult({ gatewayError: LIVE_GATEWAY_ERROR });
+    await renderPayment();
+
+    const button = screen.getByRole("button", {
+      name: "Cancel this booking",
+    });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    await act(async () => {});
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(cancelBooking).toHaveBeenCalledWith(99);
+    expect(screen.getByText("This booking has been cancelled.")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Cancel this booking" }),
+    ).toBeNull();
+  });
+
+  it("does not cancel when the confirmation is dismissed", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    saveResult({ gatewayError: LIVE_GATEWAY_ERROR });
+    await renderPayment();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Cancel this booking" }),
+      );
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(cancelBooking).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Cancel this booking" }),
+    ).toBeTruthy();
+  });
+
+  it("hides the cancel button without cancel_bookings", async () => {
+    saveResult({ gatewayError: LIVE_GATEWAY_ERROR });
+    await renderPayment({
+      user: {
+        ...CUSTOMER,
+        roles: [{ id: 4, name: "tour_guide", type: "admin" }],
+      },
+    });
+
+    expect(
+      screen.getByText(
+        "Online payment is not available right now. Your booking has been saved as pending.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Cancel this booking" }),
+    ).toBeNull();
+  });
+
+  it("links to the tour list", async () => {
+    saveResult({ gatewayError: LIVE_GATEWAY_ERROR });
+    await renderPayment();
+
+    expect(
+      screen.getByRole("link", { name: "Browse tours" }).getAttribute("href"),
+    ).toBe("/tours/catalog");
   });
 });
 

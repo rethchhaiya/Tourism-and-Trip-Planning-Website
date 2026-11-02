@@ -21,6 +21,7 @@ import MyBookingsPage from "./MyBookingsPage";
 import MyBookingDetailPage from "./MyBookingDetailPage";
 import {
   cancelBooking,
+  deleteBooking,
   getBooking,
   listBookings,
 } from "../../services/bookingService";
@@ -31,6 +32,7 @@ vi.mock("../../services/bookingService", () => ({
   listBookings: vi.fn(),
   getBooking: vi.fn(),
   cancelBooking: vi.fn(),
+  deleteBooking: vi.fn(),
 }));
 
 vi.mock("../../hooks/useReferenceData", async (importOriginal) => {
@@ -102,6 +104,19 @@ const OWNED_BOOKING = {
   status: "pending",
   type: "Individual",
   membersCount: 2,
+  userId: 7,
+};
+
+const CANCELLED_BOOKING = {
+  id: 12,
+  title: "Cancelled Tour",
+  tourId: 4,
+  scheduleId: 13,
+  scheduleLabel: "Jul 1, 2026 – Jul 2, 2026",
+  totalPrice: 100,
+  status: "cancelled",
+  type: "Family",
+  membersCount: 1,
   userId: 7,
 };
 
@@ -204,6 +219,7 @@ beforeEach(() => {
   listBookings.mockReset();
   getBooking.mockReset();
   cancelBooking.mockReset();
+  deleteBooking.mockReset();
   useReferenceData.mockReset();
   listBookings.mockResolvedValue(pageResult());
   useReferenceData.mockReturnValue(REFERENCE);
@@ -340,6 +356,110 @@ describe("MyBookingsPage", () => {
     expect(screen.getByTestId("location").textContent).toBe(
       "/my-bookings?page=3",
     );
+  });
+
+  it("lets a customer remove a cancelled booking from the list only", async () => {
+    listBookings.mockResolvedValue(
+      pageResult({ bookings: [OWNED_BOOKING, CANCELLED_BOOKING], total: 2 }),
+    );
+
+    renderAt("/my-bookings", CUSTOMER);
+
+    expect(await screen.findByText("Cancelled Tour")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Delete booking" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove from list" }));
+
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(deleteBooking).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText(/will still exist on the server/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText("Cancelled Tour")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain(
+      "This booking has been removed from this list.",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Dismiss notification" }),
+    );
+    expect(
+      screen.queryByText("This booking has been removed from this list."),
+    ).toBeNull();
+  });
+
+  it("keeps the booking when the removal dialog is dismissed", async () => {
+    listBookings.mockResolvedValue(
+      pageResult({ bookings: [CANCELLED_BOOKING], total: 1 }),
+    );
+
+    renderAt("/my-bookings", CUSTOMER);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Remove from list" }),
+    );
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep booking" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText("Cancelled Tour")).toBeTruthy();
+  });
+
+  it("lets an admin delete a cancelled booking through the API", async () => {
+    listBookings.mockResolvedValue(
+      pageResult({ bookings: [CANCELLED_BOOKING], total: 1 }),
+    );
+    deleteBooking.mockResolvedValue({ id: 12 });
+
+    renderAt("/my-bookings", ADMIN_CUSTOMER);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete booking" }));
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Delete this cancelled booking? This cannot be undone.",
+    );
+    await waitFor(() => expect(deleteBooking).toHaveBeenCalledWith(12));
+    expect(screen.queryByText("Cancelled Tour")).toBeNull();
+    expect(screen.getByText("This booking has been deleted.")).toBeTruthy();
+  });
+
+  it("shows a generic message when an admin delete fails", async () => {
+    listBookings.mockResolvedValue(
+      pageResult({ bookings: [CANCELLED_BOOKING], total: 1 }),
+    );
+    deleteBooking.mockRejectedValue(new Error("server exploded"));
+
+    renderAt("/my-bookings", ADMIN_CUSTOMER);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete booking" }));
+
+    expect(
+      await screen.findByText("Could not delete this booking. Please try again."),
+    ).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Could not delete this booking. Please try again.",
+    );
+    expect(screen.getByText("Cancelled Tour")).toBeTruthy();
+  });
+
+  it("hides removal without cancel_bookings", async () => {
+    listBookings.mockResolvedValue(
+      pageResult({ bookings: [CANCELLED_BOOKING], total: 1 }),
+    );
+
+    renderAt("/my-bookings", TOUR_GUIDE);
+
+    expect(await screen.findByText("Cancelled Tour")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Remove from list" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Delete booking" }),
+    ).toBeNull();
   });
 
   it("redirects a guest to login", async () => {

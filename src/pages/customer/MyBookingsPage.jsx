@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Footer from "../../components/Footer";
 import Header from "../../components/Header";
+import Toast from "../../components/common/Toast";
 import BookingStatusBadge from "../../components/booking/BookingStatusBadge";
 import { useAuth } from "../../context/useAuth";
 import { PERMISSIONS } from "../../constants/permissions";
@@ -9,6 +10,7 @@ import { useReferenceData } from "../../hooks/useReferenceData";
 import { isAdmin, isTourManager } from "../../services/roleAdapter";
 import {
   cancelBooking,
+  deleteBooking,
   listBookings,
 } from "../../services/bookingService";
 import { formatCurrency } from "../../utils/currency";
@@ -20,6 +22,10 @@ import {
 
 const REFERENCE_LISTS = ["booking_statuses", "booking_types"];
 const PER_PAGE = 10;
+const DELETE_CONFIRM_MESSAGE =
+  "Delete this cancelled booking? This cannot be undone.";
+const DELETE_ERROR_MESSAGE =
+  "Could not delete this booking. Please try again.";
 
 function toOptions(list) {
   if (!Array.isArray(list)) {
@@ -126,6 +132,8 @@ export default function MyBookingsPage() {
   const [loadState, setLoadState] = useState("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [cancellingId, setCancellingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
   const [cancelError, setCancelError] = useState("");
   const [cancelNotice, setCancelNotice] = useState("");
 
@@ -159,6 +167,7 @@ export default function MyBookingsPage() {
   const typeOptions = toOptions(reference.data.booking_types);
 
   const canCancel = can(PERMISSIONS.CANCEL_BOOKINGS);
+  const canDeleteBooking = isAdmin(user);
   const staffViewer = isAdmin(user) || isTourManager(user);
 
   const bookings = result?.bookings ?? [];
@@ -249,6 +258,81 @@ export default function MyBookingsPage() {
     }
   }
 
+  function removeBookingFromList(bookingId) {
+    setResult((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return {
+        ...previous,
+        bookings: previous.bookings.filter(
+          (item) => String(item.id) !== String(bookingId),
+        ),
+        total: Math.max(0, (previous.total ?? 1) - 1),
+      };
+    });
+  }
+
+  function handleRemove(booking) {
+    const bookingStatus = String(booking.status ?? "")
+      .trim()
+      .toLowerCase();
+    if (bookingStatus !== "cancelled") {
+      return;
+    }
+
+    setRemoveTarget(booking);
+  }
+
+  function closeRemoveDialog() {
+    setRemoveTarget(null);
+  }
+
+  function confirmRemove() {
+    const target = removeTarget;
+    setRemoveTarget(null);
+    if (!target) {
+      return;
+    }
+
+    setCancelError("");
+    setCancelNotice("");
+    removeBookingFromList(target.id);
+    setCancelNotice("This booking has been removed from this list.");
+  }
+
+  const dismissNotification = useCallback(() => {
+    setCancelError("");
+    setCancelNotice("");
+  }, []);
+
+  async function handleDelete(booking) {
+    const bookingStatus = String(booking.status ?? "")
+      .trim()
+      .toLowerCase();
+    if (bookingStatus !== "cancelled") {
+      return;
+    }
+
+    if (!window.confirm(DELETE_CONFIRM_MESSAGE)) {
+      return;
+    }
+
+    setCancelError("");
+    setCancelNotice("");
+    setDeletingId(booking.id);
+
+    try {
+      await deleteBooking(booking.id);
+      removeBookingFromList(booking.id);
+      setCancelNotice("This booking has been deleted.");
+    } catch {
+      setCancelError(DELETE_ERROR_MESSAGE);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <>
       <Header />
@@ -300,23 +384,11 @@ export default function MyBookingsPage() {
             </label>
           </div>
 
-          {cancelError && (
-            <p
-              role="alert"
-              className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
-            >
-              {cancelError}
-            </p>
-          )}
-
-          {cancelNotice && (
-            <p
-              role="status"
-              className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
-            >
-              {cancelNotice}
-            </p>
-          )}
+          <Toast
+            message={cancelError || cancelNotice}
+            tone={cancelError ? "error" : "success"}
+            onClose={dismissNotification}
+          />
 
           {loadState === "loading" && <LoadingState />}
 
@@ -420,6 +492,31 @@ export default function MyBookingsPage() {
                             : "Cancel booking"}
                         </button>
                       )}
+
+                      {canCancel &&
+                        String(booking.status ?? "")
+                          .trim()
+                          .toLowerCase() === "cancelled" &&
+                        (canDeleteBooking ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(booking)}
+                            disabled={String(deletingId) === String(booking.id)}
+                            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {String(deletingId) === String(booking.id)
+                              ? "Deleting..."
+                              : "Delete booking"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(booking)}
+                            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Remove from list
+                          </button>
+                        ))}
                     </div>
                   </article>
                 );
@@ -453,6 +550,44 @@ export default function MyBookingsPage() {
             </div>
           )}
         </div>
+
+        {removeTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="remove-booking-title"
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            >
+              <h2
+                id="remove-booking-title"
+                className="text-lg font-bold text-slate-900"
+              >
+                Remove booking?
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Remove {removeTarget.title ?? "this booking"} from this list? It
+                will still exist on the server.
+              </p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeRemoveDialog}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Keep booking
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmRemove}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </>
