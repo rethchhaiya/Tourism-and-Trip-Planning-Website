@@ -39,10 +39,14 @@ function extractMessage(body) {
 }
 
 function normalizeError(status, body) {
-  return new ApiError(extractMessage(body) ?? GENERIC_ERROR_MESSAGE, {
+  const error = new ApiError(extractMessage(body) ?? GENERIC_ERROR_MESSAGE, {
     status,
     errors: extractErrors(body),
   });
+  if (body && typeof body === "object") {
+    error.body = body;
+  }
+  return error;
 }
 
 function unwrap(body) {

@@ -6,6 +6,7 @@ import {
   MapPin,
   Compass,
   Map,
+  Tags,
   CalendarCheck,
   Users,
   Star,
@@ -23,6 +24,7 @@ import { canAccessRoute } from "../../routes/routeAccess";
 const menuPaths = {
   DashBoard: ["/dashboard", "/sidebar"],
   Destinations: ["/table_destinations", "/destination", "/admin/destinations"],
+  Categories: ["/admin/categories"],
   Guides: ["/guides"],
   Tours: ["/admin/tours"],
   Bookings: ["/bookings", "/listbooking"],
@@ -46,6 +48,7 @@ const sections = [
     items: [
       { name: "Manage Master", icon: Layers },
       { name: "Destinations", icon: MapPin },
+      { name: "Categories", icon: Tags },
       { name: "Guides", icon: Compass },
       { name: "Tours", icon: Map },
     ],

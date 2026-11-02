@@ -1,9 +1,17 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../context/AuthContext";
 import AppRoutes from "./AppRoutes";
+
+vi.mock("../services/adminCategoryService", () => ({
+  listCategories: vi.fn().mockResolvedValue([]),
+  getCategory: vi.fn().mockResolvedValue(null),
+  createCategory: vi.fn().mockResolvedValue({}),
+  updateCategory: vi.fn().mockResolvedValue({}),
+  deleteCategory: vi.fn().mockResolvedValue({}),
+}));
 
 const SESSION_KEY = "traveladmin.session";
 
@@ -34,6 +42,7 @@ const ROUTE_MATRIX = [
   ["/table_destinations", ["admin", "tour_manager", "tour_guide", "customer"]],
   ["/guides", ["admin", "customer"]],
   ["/admin/tours", ["admin", "tour_manager", "tour_guide", "customer"]],
+  ["/admin/categories", ["admin", "tour_manager"]],
   ["/customers", ["admin"]],
   ["/customer", ["admin"]],
   ["/createcustomer", ["admin"]],

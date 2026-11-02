@@ -45,8 +45,16 @@ function renderSidebar(user) {
 }
 
 const visibleItems = () =>
-  ["DashBoard", "Destinations", "Guides", "Tours", "Bookings", "Customers", "Settings"]
-    .filter((label) => screen.queryByText(label) !== null);
+  [
+    "DashBoard",
+    "Destinations",
+    "Categories",
+    "Guides",
+    "Tours",
+    "Bookings",
+    "Customers",
+    "Settings",
+  ].filter((label) => screen.queryByText(label) !== null);
 
 beforeEach(() => {
   localStorage.clear();
@@ -64,6 +72,7 @@ describe("Sidebar menu visibility", () => {
     expect(visibleItems()).toEqual([
       "DashBoard",
       "Destinations",
+      "Categories",
       "Guides",
       "Tours",
       "Bookings",
@@ -77,6 +86,7 @@ describe("Sidebar menu visibility", () => {
 
     expect(visibleItems()).toEqual([
       "Destinations",
+      "Categories",
       "Tours",
       "Bookings",
       "Settings",

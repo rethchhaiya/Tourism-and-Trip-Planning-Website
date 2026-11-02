@@ -39,6 +39,7 @@ import CategoriesPage from "../pages/public/CategoriesPage";
 import AboutPage from "../pages/public/AboutPage";
 import ContactPage from "../pages/public/ContactPage";
 import TourListPage from "../pages/admin/tours/TourListPage";
+import CategoriesAdminPage from "../pages/admin/categories/CategoriesAdminPage";
 import DashboardEntry from "../components/layout/DashboardEntry";
 import BookingPage from "../pages/customer/BookingPage";
 import MyBookingsPage from "../pages/customer/MyBookingsPage";
@@ -137,6 +138,16 @@ export default function AppRoutes() {
             <Route element={<Sidebar />}>
               <Route path="/table_destinations" element={<DestinationsList />} />
               <Route path="/admin/destinations" element={<DestinationsList />} />
+            </Route>
+          </Route>
+
+          <Route
+            element={
+              <RequirePermission {...ROUTE_ACCESS["/admin/categories"]} />
+            }
+          >
+            <Route element={<Sidebar />}>
+              <Route path="/admin/categories" element={<CategoriesAdminPage />} />
             </Route>
           </Route>
 

@@ -25,6 +25,10 @@ export const ROUTE_ACCESS = {
   "/admin/destinations": {
     permission: PERMISSIONS.VIEW_LOCATIONS,
   },
+  "/admin/categories": {
+    staff: true,
+    permission: PERMISSIONS.VIEW_CATEGORIES,
+  },
   "/destination": { staff: true, permission: PERMISSIONS.STORE_LOCATIONS },
   "/guides": { permission: PERMISSIONS.VIEW_GUIDES },
   "/admin/tours": { permission: PERMISSIONS.VIEW_TOURS },
