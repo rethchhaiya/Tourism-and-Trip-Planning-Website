@@ -1,6 +1,6 @@
 # Backend issues and requests (ETEC Tour API)
 
-Last updated: 2026-10-31. Found through live API checks and the API document.
+Last updated: 2026-11-03. Found through live API checks and the API document.
 Status values: Open, Reported, Resolved. Never put tokens, passwords, or credentials in this file.
 
 ## Open issues
@@ -19,6 +19,7 @@ Status values: Open, Reported, Resolved. Never put tokens, passwords, or credent
 | 10 | Low | Document | forgot-password and resend-otp list an Authorization header as required, but they are used by logged-out users. | Read the document | Called without a token. | Open |
 | 11 | Low | Document versus live API | Name mismatches: reference key payment_method (document) vs payment_methods (live); tour create/update fields duration_days and duration_nights vs duration_day and duration_night in responses; participant_sex values are capitalised (Male) while the document says lowercase; user field verified_at vs email_verified_at in the document; GET /tours/{id} is documented as admin-only but is public. | Compare responses with the document | Mapper functions read the live names. Verify field names before building the admin tour form. | Open |
 | 12 | Low | Response shapes | Inconsistent shapes: the tour list has no success field and uses meta and links; the booking list nests items in data.data; public tour images have no id; seed image URLs use example.com. | Compare list responses | Mappers and an image fallback. | Open |
+| 13 | High | GET /tour-images, /storage | Every uploaded image 404s. The API returns `full_image_url` = `https://etec-tour.ranavattra.com/storage/TourImages/<file>.jpg`, but all uploaded files return 404. `/storage/TourImages/` returns 403, so the public symlink exists; the files are not in it. The seed stock URLs (magnific, istockphoto, ftcdn) return 200, so only uploads are affected. Uploads are recorded in the DB but not written to the public disk (default local disk, or a disk/path mismatch). | Upload an image, then request its `full_image_url` | None. `ImagePreview` tries every candidate and then shows a placeholder; it cannot render a 404. | Open |
 
 ## Missing endpoints (not in the document, so not built)
 

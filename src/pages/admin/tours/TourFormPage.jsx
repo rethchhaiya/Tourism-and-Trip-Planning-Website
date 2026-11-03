@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useAuth } from "../../../context/useAuth";
 import { PERMISSIONS } from "../../../constants/permissions";
 import { useReferenceData } from "../../../hooks/useReferenceData";
+import TourImagesSection from "../../../components/admin/tours/TourImagesSection";
 import { listCategories } from "../../../services/adminCategoryService";
 import {
   buildTourPayload,
@@ -100,7 +101,7 @@ function FieldError({ message }) {
 export default function TourFormPage({ mode = "create" }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { can } = useAuth();
+  const { can, isAdmin } = useAuth();
   const isEdit = mode === "edit";
   const tourId = isEdit ? Number(id) : null;
   const canUpdate = can(PERMISSIONS.UPDATE_TOURS);
@@ -655,8 +656,8 @@ export default function TourFormPage({ mode = "create" }) {
             </div>
           </section>
 
-          {/* TODO(separate-task): tour images, inclusions/exclusions, schedules
-              and itinerary editing are intentionally not part of this screen. */}
+          {/* TODO(separate-task): inclusions/exclusions, schedules and itinerary
+              editing are intentionally not part of this screen. */}
 
           {formError && (
             <p
@@ -676,6 +677,12 @@ export default function TourFormPage({ mode = "create" }) {
             </p>
           )}
         </form>
+
+        {isEdit && (
+          <div className="mt-4">
+            <TourImagesSection tourId={tourId} canManage={isAdmin} />
+          </div>
+        )}
       </div>
     </main>
   );
